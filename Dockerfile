@@ -10,8 +10,7 @@ RUN     apt-get -y install nodejs
 
 # git setting
 RUN     apt-get -y install git
+WORKDIR /home
 RUN     git clone https://github.com/Stageus/outsourcing-knock-backend.git
 
 RUN     apt-get install -y vim
-
-# WORKDIR /
