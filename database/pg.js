@@ -3,11 +3,11 @@ const dotenv = require('dotenv');
 const error = require("../errors/error.js");
 dotenv.config({path : path.join(__dirname, "../config/.env")});
 const config = {
-    user: process.env.DB_USER,
-    host : process.env.DB_HOST,
-    database : process.env.DB_NAME,
-    password : process.env.DB_PASSWORD,
-    port : process.env.DB_PG_PORT,
+    user: process.env.POSTGRESQL_USER,
+    host : process.env.POSTGRESQL_HOST,
+    database : process.env.POSTGRESQL_NAME,
+    password : process.env.POSTGRESQL_PASSWORD,
+    port : process.env.POSTGRESQL_PORT,
 };
 
 class Postgres {
