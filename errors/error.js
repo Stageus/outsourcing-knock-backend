@@ -31,6 +31,8 @@ class SqlSyntaxError extends Error{
 }
 
 
+module.exports = { BadRequestError, UnauthorizedError, PostgreConnectionError, SqlSyntaxError}
+
 
 
 

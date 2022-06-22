@@ -6,6 +6,7 @@ const https= require('https');
 const fs = require('fs'); // 파일을 임포트 할 때 씀
 const dotenv = require('dotenv');
 const cors = require('cors');
+const Postgres = require('./database/pg.js');
 //const router = require('./routes/router.js');
 
 

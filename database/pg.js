@@ -1,21 +1,25 @@
 const {Client} = require('pg');
 const dotenv = require('dotenv');
-const error = require("../errors/error.js");
+const { BadRequestError, UnauthorizedError, PostgreConnectionError, SqlSyntaxError} = require("../errors/error.js");
+const path = require('path');
 dotenv.config({path : path.join(__dirname, "../config/.env")});
 const config = {
     user: process.env.POSTGRESQL_USER,
     host : process.env.POSTGRESQL_HOST,
-    database : process.env.POSTGRESQL_NAME,
+    database : process.env.POSTGRESQL_DBNAME,
     password : process.env.POSTGRESQL_PASSWORD,
     port : process.env.POSTGRESQL_PORT,
 };
 
-class Postgres {
-    connectionPool;
-    connect  = async()=>{
+module.exports =  class Postgres {
+    Postgres(){
+        this.connectionPool = null;
+    }
+    async connect(){
         try{
             this.connectionPool = new Client(config);
-            await connectionPool.connect();
+            await this.connectionPool.connect();
+            await this.connectionPool.end();
             return;
         }
         catch(err){
@@ -23,7 +27,7 @@ class Postgres {
         }
     }
 
-    queryExcute = async(sql, parameter) =>{
+    async queryExcute(sql, parameter){
         try{
             const result = await connectionPool.query(sql,parameter);
             return result;
@@ -34,7 +38,7 @@ class Postgres {
 
     }
 
-    queryUpdate = async(sql, parameter)=>{
+    async queryUpdate(sql, parameter){
         try{
         }
         catch(err){
