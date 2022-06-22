@@ -12,11 +12,13 @@ const config = {
 };
 
 class Mongo {
-    connectionPool; 
-    logSchema;
-    logModel;
+    Mongo(){
+        this.connectionPool = null; 
+        this.logSchema = null;
+        this.logModel = null;
+    }
 
-    connect = async() => {
+    async connect(){
         try{
             this.connectionPool = mongoose.createConnection('mongodb://'
             + config.user +':'
@@ -31,7 +33,7 @@ class Mongo {
         }
     }
 
-    setSchema = async() =>{
+    async setSchema(){
         try{
             this.logSchema = new mongoose.Schema({
                 log_time: Date,
@@ -69,3 +71,31 @@ class Mongo {
         }
     }
 }
+
+const connect = () => {
+    return mongoose.createConnection('mongodb://'
+    + config.user +':'
+    + config.password +'@'
+    + config.host + ':' + config.port
+    + '/' +  "log"
+    , function (err) {
+        if (err) {
+            console.error('mongodb connection error', err);
+        }
+        console.log('mongodb logDB connected');
+    });
+}
+
+const logConn = connect();
+
+const logSchema = new mongoose.Schema({
+    log_time: Date,
+    user_id: String,
+    api_type: String,
+    req_data: String,
+    res_data: String,
+})
+
+const LogModel =  logConn.model("log", logSchema);
+
+module.exports = LogModel;
