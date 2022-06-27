@@ -1,15 +1,16 @@
-const mongoose = requrie('mongoose');
+const mongoose = require('mongoose');
 const dotenv = require('dotenv');
 const { BadRequestError, UnauthorizedError, MongoConnectionError, SqlSyntaxError} = require("../errors/error.js");
 const path = require('path');
 dotenv.config({path : path.join(__dirname, "../config/.env")});
 
 const config = {
-    user: process.env.MONGODB_USER,
-    password : process.env.MONGODB_PASSWORD,
-    host : process.env.MONGODB_HOST,
-    port : process.env.MONGODB_PG_PORT,
-    database : process.env.MONGODB_DBNAME,
+    user: process.env.MONGO_USER,
+    password : process.env.MONGO_PASSWORD,
+    host : process.env.MONGO_HOST,
+    port : process.env.MONGO_PORT,
+    database : process.env.MONGO_DBNAME,
+    collection : process.env.MONGO_COLLECTIONNAME,
 };
 
 module.exports = class Mongo {
@@ -25,8 +26,9 @@ module.exports = class Mongo {
             + config.user +':'
             + config.password +'@'
             + config.host + ':' + config.port
-            + '/' +  "log");
+            + '/' +  config.database);
 
+            console.log("Mongo Connected");
             return;
         }
         catch(err){
@@ -72,23 +74,3 @@ module.exports = class Mongo {
         }
     }
 }
-
-const connect = () => {
-    return mongoose.createConnection('mongodb://'
-    + config.user +':'
-    + config.password +'@'
-    + config.host + ':' + config.port
-    + '/' +  "log"
-    , function (err) {
-        if (err) {
-            console.error('mongodb connection error', err);
-        }
-        console.log('mongodb logDB connected');
-    });
-}
-
-const logConn = connect();
-
-const LogModel =  logConn.model("log", logSchema);
-
-module.exports = LogModel;
