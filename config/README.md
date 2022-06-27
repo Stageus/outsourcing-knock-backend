@@ -1,2 +1,15 @@
-Need .env file
+### Need .env file
 
+## Need below format
+POSTGRESQL_USER = ""
+POSTGRESQL_HOST = ""
+POSTGRESQL_DBNAME= ""
+POSTGRESQL_PASSWORD = ""
+POSTGRESQL_PORT = ""
+
+MONGO_USER = ""
+MONGO_HOST = ""
+MONGO_DBNAME= ""
+MONGO_COLLECTIONNAME = "" 
+MONGO_PASSWORD = ""
+MONGO_PORT = ""
