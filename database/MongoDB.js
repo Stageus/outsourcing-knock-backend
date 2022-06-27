@@ -1,6 +1,7 @@
 const mongoose = requrie('mongoose');
 const dotenv = require('dotenv');
-const error = require("../errors/error.js");
+const { BadRequestError, UnauthorizedError, MongoConnectionError, SqlSyntaxError} = require("../errors/error.js");
+const path = require('path');
 dotenv.config({path : path.join(__dirname, "../config/.env")});
 
 const config = {
@@ -11,7 +12,7 @@ const config = {
     database : process.env.MONGODB_DBNAME,
 };
 
-class Mongo {
+module.exports = class Mongo {
     Mongo(){
         this.connectionPool = null; 
         this.logSchema = null;
@@ -87,14 +88,6 @@ const connect = () => {
 }
 
 const logConn = connect();
-
-const logSchema = new mongoose.Schema({
-    log_time: Date,
-    user_id: String,
-    api_type: String,
-    req_data: String,
-    res_data: String,
-})
 
 const LogModel =  logConn.model("log", logSchema);
 

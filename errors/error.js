@@ -22,6 +22,14 @@ class PostgreConnectionError extends Error{
     }
 }
 
+class MongoConnectionError extends Error{
+    PostgreConnectionError(error){
+        this.message = error.message;
+        this.name = error.name;
+        this.stack = error.stack;
+    }
+}
+
 class SqlSyntaxError extends Error{
     SqlSyntaxError(error){
         this.message = error.message;
