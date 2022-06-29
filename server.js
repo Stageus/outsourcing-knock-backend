@@ -7,7 +7,7 @@ const fs = require('fs'); // 파일을 임포트 할 때 씀
 const dotenv = require('dotenv');
 const cors = require('cors');
 const Postgres = require('./database/pg.js');
-//const router = require('./routes/router.js');
+const router = require('./routes/router');
 
 
 dotenv.config({path : path.join(__dirname, './config/.env')});
@@ -42,7 +42,7 @@ app.use(express.json());
     }
 })*/
 
-//app.use('/',router);
+app.use('/', router);
 app.use((req,res)=>{
     res.status(404).send("잘못된 페이지 요청입니다.");
 })

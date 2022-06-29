@@ -1,6 +1,6 @@
 const mongoose = require('mongoose');
 const dotenv = require('dotenv');
-const { BadRequestError, UnauthorizedError, MongoConnectionError, SqlSyntaxError} = require("../errors/error.js");
+const { BadRequestError, UnauthorizedError, MongoConnectionError, SqlSyntaxError, MongoCreateError} = require("../errors/error.js");
 const path = require('path');
 dotenv.config({path : path.join(__dirname, "../config/.env")});
 
@@ -22,7 +22,7 @@ module.exports = class Mongo {
 
     async connect(){
         try{
-            this.connectionPool = mongoose.createConnection('mongodb://'
+            this.connectionPool = await mongoose.createConnection('mongodb://'
             + config.user +':'
             + config.password +'@'
             + config.host + ':' + config.port
@@ -46,31 +46,32 @@ module.exports = class Mongo {
                 res_data: String,
             });
 
-            this.logModel = this.connectionPool.model("log", this.logSchema);
+            this.logModel = await this.connectionPool.model("log", this.logSchema, config.collection);
 
             return;
         }
         catch(err){
-
+            console.log(err);
         }
     }
 
-    queryExcute = async(sql, parameter) =>{
+    async createLog(id, api, req, res){
+        const LogContent = { 
+            "log_time": new Date(),
+            "user_id": id,
+            "api_type": api,
+            "req_data": req,
+            "res_data": res,
+        };
+    
         try{
-            // write according to mongo format
+            const result = await this.logModel.create(LogContent);
+            return result;
         }
         catch(err){
-            throw new SqlSyntaxError(err);
-        }
-
-    }
-
-    queryUpdate = async(sql, parameter)=>{
-        try{
-            // write according to mongo format
-        }
-        catch(err){
-            throw new SqlSyntaxError(err);
+            console.log(err.message);
+            console.log(err.name);
+            throw new MongoCreateError(err);
         }
     }
 }
