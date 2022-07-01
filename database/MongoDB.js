@@ -1,6 +1,6 @@
 const mongoose = require('mongoose');
 const dotenv = require('dotenv');
-const { BadRequestError, UnauthorizedError, MongoConnectionError, SqlSyntaxError, MongoCreateError} = require("../errors/error.js");
+const { MongoConnectionError, MongoCreateError, MongoDeleteError} = require("../errors/error.js");
 const path = require('path');
 dotenv.config({path : path.join(__dirname, "../config/.env")});
 
@@ -22,13 +22,11 @@ module.exports = class Mongo {
 
     async connect(){
         try{
-            this.connectionPool = await mongoose.createConnection('mongodb://'
-            + config.user +':'
-            + config.password +'@'
-            + config.host + ':' + config.port
-            + '/' +  config.database);
+            this.connectionPool = await mongoose.createConnection(
+                `mongodb://${config.user}:${config.password}@${config.host}:${config.port}/${config.database}`);
 
-            console.log("Mongo Connected");
+            await this.setSchema();
+
             return;
         }
         catch(err){
@@ -69,9 +67,16 @@ module.exports = class Mongo {
             return result;
         }
         catch(err){
-            console.log(err.message);
-            console.log(err.name);
             throw new MongoCreateError(err);
+        }
+    }
+
+    async deleteAllLog(){
+        try{
+            await this.logModel.deleteMany();
+        }
+        catch(err){
+            throw new MongoDeleteError(err);
         }
     }
 }

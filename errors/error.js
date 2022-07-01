@@ -23,6 +23,14 @@ class PostgreConnectionError extends Error {
   }
 }
 
+class SqlSyntaxError extends Error {
+    SqlSyntaxError(error) {
+        this.message = error.message;
+        this.name = error.name;
+        this.stack = error.stack;
+    }
+}
+
 class MongoConnectionError extends Error {
   PostgreConnectionError(error) {
     this.message = error.message;
@@ -31,15 +39,15 @@ class MongoConnectionError extends Error {
   }
 }
 
-class SqlSyntaxError extends Error {
-  SqlSyntaxError(error) {
-    this.message = error.message;
-    this.name = error.name;
-    this.stack = error.stack;
-  }
+class MongoCreateError extends Error{
+    MongoCreateError(error) {
+        this.message = error.message;
+        this.name = error.name;
+        this.stack = error.stack;
+    }
 }
 
-class MongoCreateError extends Error{
+class MongoDeleteError extends Error{
     MongoCreateError(error) {
         this.message = error.message;
         this.name = error.name;

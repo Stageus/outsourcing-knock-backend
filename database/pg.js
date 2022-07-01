@@ -19,7 +19,7 @@ module.exports =  class Postgres {
         try{
             this.connectionPool = new Client(config);
             await this.connectionPool.connect();
-            await this.connectionPool.end();
+            // await this.connectionPool.end();
             return;
         }
         catch(err){
@@ -29,7 +29,7 @@ module.exports =  class Postgres {
 
     async queryExcute(sql, parameter){
         try{
-            const result = await connectionPool.query(sql,parameter);
+            const result = await this.connectionPool.query(sql,parameter);
             return result;
         }
         catch(err){
