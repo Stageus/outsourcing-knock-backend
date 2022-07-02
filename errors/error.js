@@ -41,7 +41,7 @@ class MongoConnectionError extends Error {
 
 class MongoCreateError extends Error{
     MongoCreateError(error) {
-        this.message = error.message;
+        this.message = "Mongo class 초기화 중 오류가 발생하였습니다.";
         this.name = error.name;
         this.stack = error.stack;
     }
@@ -56,6 +56,14 @@ class MongoDeleteError extends Error{
 }
 
 // Token related
+class TokenIssueError extends Error {
+    TokenIssueError(error) {
+        this.message = "토큰 발급에서 오류가 발생하였습니다.";
+        this.name = error.name;
+        this.stack = error.stack;
+    }
+}
+
 class TokenExpiredError extends Error {
   TokenExpiredError(error) {
     this.message = "토큰이 만료되었습니다.";
@@ -72,5 +80,6 @@ module.exports = {
   MongoConnectionError,
   MongoCreateError,
   MongoDeleteError,
+  TokenIssueError,
   TokenExpiredError,
 };

@@ -1,5 +1,13 @@
 const jwtToken = require('../utils/jwtToken');
-const { MongoConnectionError } = require("../errors/error");
+const {   BadRequestError,
+    UnauthorizedError,
+    PostgreConnectionError,
+    SqlSyntaxError,
+    MongoConnectionError,
+    MongoCreateError,
+    MongoDeleteError,
+    TokenIssueError,
+    TokenExpiredError, } = require("../errors/error");
 const postgres = require("../database/pg");
 const mongodb = require("../database/MongoDB");
 const router = require('../routes/router');

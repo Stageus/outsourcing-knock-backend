@@ -1,7 +1,7 @@
 const jwt = require("jsonwebtoken");
 const dotenv = require('dotenv');
+const { TokenIssueError, } = require("../errors/error");
 const path = require("path");
-const { TokenExpiredError } = require("../errors/error.js"); // Get token error object
 dotenv.config({path : path.join(__dirname, "../config/.env")});
 
 const config = {
@@ -9,17 +9,22 @@ const config = {
 }
 
 module.exports.issueToken = async (reqId, reqPw) =>{
-    const signedJwt = jwt.sign(
-        { // payload
-            id : reqId,
-            pw : reqPw, 
-        },
-        config.secretKey,
-        { // options
-            expiresIn: "10m",
-            issuer : "knock",
-        }
-    )
+    try{
+        const signedJwt = jwt.sign(
+            { // payload
+                id : reqId,
+                pw : reqPw, 
+            },
+            config.secretKey,
+            { // options
+                expiresIn: "10m",
+                issuer : "knock",
+            }
+        )
+    }
+    catch(err){
+        throw new TokenIssueError(err);
+    }
 
     return signedJwt;
 };
@@ -38,7 +43,7 @@ module.exports.verifyToken = (req, res) =>{
         return res.status(200).send(resultObj);
     }
     catch (err) {
-        if (err == TokenExpiredError) {
+        if (err === TokenExpiredError) {
             resultObj.status = 'expired';
             resultObj.message = 'token expired';
 
