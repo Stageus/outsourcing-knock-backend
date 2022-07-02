@@ -1,9 +1,9 @@
 const express = require("express");
 const router = express.Router();
-const account = require("../middlewares/account");
+const userAccount = require("../middlewares/userAccount");
 const jwtToken = require("../utils/jwtToken");
 
-router.post("/login", account.login);
-router.get("/tokenLogin", account.tokenLogin);
+router.post("/userLogin", userAccount.login);
+router.get("/userTokenLogin", userAccount.createAccount);
 
 module.exports = router;
