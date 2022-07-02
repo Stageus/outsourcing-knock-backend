@@ -68,8 +68,9 @@ module.exports = {
   BadRequestError,
   UnauthorizedError,
   PostgreConnectionError,
-  MongoConnectionError,
   SqlSyntaxError,
-  TokenExpiredError,
+  MongoConnectionError,
   MongoCreateError,
+  MongoDeleteError,
+  TokenExpiredError,
 };
