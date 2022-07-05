@@ -1,6 +1,6 @@
 const {Client} = require('pg');
 const dotenv = require('dotenv');
-const { BadRequestError, UnauthorizedError, PostgreConnectionError, SqlSyntaxError} = require("../errors/error.js");
+const {PostgreConnectionError, SqlSyntaxError} = require("../errors/error.js");
 const path = require('path');
 dotenv.config({path : path.join(__dirname, "../config/.env")});
 const config = {
@@ -19,7 +19,6 @@ module.exports =  class Postgres {
         try{
             this.connectionPool = new Client(config);
             await this.connectionPool.connect();
-            // await this.connectionPool.end();
             return;
         }
         catch(err){
@@ -27,7 +26,7 @@ module.exports =  class Postgres {
         }
     }
 
-    async queryExcute(sql, parameter){
+    async queryExecute(sql, parameter){
         try{
             const result = await this.connectionPool.query(sql,parameter);
             return result;
@@ -40,10 +39,15 @@ module.exports =  class Postgres {
 
     async queryUpdate(sql, parameter){
         try{
+            await this.connectionPool.query(sql,parameter);
         }
         catch(err){
             throw new SqlSyntaxError(err);
         }
+    }
+
+    async disconnect(){
+        await this.connectionPool.end();
     }
 }
         

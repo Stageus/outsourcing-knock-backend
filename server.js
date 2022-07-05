@@ -6,9 +6,7 @@ const https= require('https');
 const fs = require('fs'); // 파일을 임포트 할 때 씀
 const dotenv = require('dotenv');
 const cors = require('cors');
-const Postgres = require('./database/pg.js');
 const router = require('./routes/router');
-
 
 dotenv.config({path : path.join(__dirname, './config/.env')});
 const corsOptions = {
@@ -20,6 +18,7 @@ const corsOptions = {
 };
 app.options('*', cors(corsOptions));
 app.use(cors(corsOptions)); 
+
 
 /*const SSL = {
     key: fs.readFileSync(path.join(__dirname, process.env.SSL_KEY)),
@@ -46,6 +45,7 @@ app.use('/', router);
 app.use((req,res)=>{
     res.status(404).send("잘못된 페이지 요청입니다.");
 })
+
 app.listen(4000, (req,res) =>{
     console.log(4000 + "포트로 서버 실행");
 })

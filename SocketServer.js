@@ -25,6 +25,7 @@ io.on('connection', (socket)=> {
 
 const disconnect = (socket) => {
     socket.on('disconnect', () => {
+        
     });
 }
 
@@ -36,7 +37,7 @@ const joinRoom = (socket) => {
 
 const message = (socket, io) => {
     socket.on('message', async(messageObj) => {
-        const {room_id, send_user_id, message} = messageObj;
+        const {room_id, send_user_id, message, participant_id} = messageObj;
         try{
             const pg = new postgres();
             pg.connect();
@@ -53,12 +54,10 @@ const message = (socket, io) => {
             await pg.queryUpdate(
                 `
                 UPDATE knock.room SET last_chat = $1
-                WHERE room_idx = $2;
+                WHERE room_index = $2;
                 `,
                 [message, room_id]
             )
-
-            console.log(savedMessage);
             
         
             const messageResponse = {
@@ -68,19 +67,14 @@ const message = (socket, io) => {
                 message,
                 createdAt: savedMessage.rows[0].created_at,
             }
-            const me = messageObj.send_user_id;
-            const target = messageObj.participant_id;
-
-            io.to(target).emit('message', messageResponse);
-            io.to(me).emit('message', messageResponse);
-
+        
             await pg.queryUpdate(   // 수신자의 읽지 않은 메시지 수를 1 증가시킵니다.
                 `
                 UPDATE knock.participant 
                 SET not_read_chat = not_read_chat + 1
                 WHERE user_index = $1 AND room_index = $2
                 `,
-                [target, room_id]
+                [participant_id, room_id]
             );                                    
             await pg.queryUpdate(   // 송신자의 읽지 않은 메시지 수를 0으로 set합니다.
                 `                   
@@ -90,8 +84,7 @@ const message = (socket, io) => {
                 `,
                 [send_user_id, room_id]
             )
-
-            pg.disconnect();
+            io.to(room_id).emit('message', messageResponse);
         }
         catch(err){
             if(err instanceof PostgreConnectionError)
@@ -103,6 +96,9 @@ const message = (socket, io) => {
             else
                 console.log(err);
         }
+        finally{
+            pg.disconnect();
+        }
             
     })
 }
@@ -110,8 +106,9 @@ const message = (socket, io) => {
 const readChat = (socket) => {
     socket.on('readChat', async(req) => {
         const {user_id, room_id} = req;
+        const pg = null;
         try{
-            const pg = new postgres();
+            pg = new postgres();
             pg.connect();
 
             pg.queryUpdate(  // 읽지 않은 메시지 수를 0으로 set합니다.
@@ -122,7 +119,7 @@ const readChat = (socket) => {
                 `,
                 [user_id, room_id]
             )
-            pg.disconnect();
+            
         }
         catch(err){
             if(err instanceof PostgreConnectionError)
@@ -133,6 +130,9 @@ const readChat = (socket) => {
             
             else
                 console.log(err);
+        }
+        finally{
+            pg.disconnect();
         }
     })
 }
