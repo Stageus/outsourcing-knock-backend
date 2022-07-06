@@ -9,7 +9,7 @@ class BadRequestError extends Error {
 class UnauthorizedError extends Error {
   Unauthorized() {
     this.message = "허가받지 않은 사용자입니다.";
-    this.name = "BadRequestError";
+    this.name = "UnauthorizedError";
     this.stack = `${this.message}\n${new Error().stack}`;
   }
 }
@@ -72,6 +72,14 @@ class TokenExpiredError extends Error {
   }
 }
 
+class NullExceptionError extends Error{
+    NullExceptionError(){
+        this.message = "정의되지 않은 요청값이 존재합니다."
+        this.name = 'NullExceptionError';
+        this.stack = `${this.message}\n${new Error().stack}`;
+    }
+}
+
 module.exports = {
   BadRequestError,
   UnauthorizedError,
@@ -82,4 +90,5 @@ module.exports = {
   MongoDeleteError,
   TokenIssueError,
   TokenExpiredError,
+  NullExceptionError,
 };

@@ -4,6 +4,6 @@ const userAccount = require("../middlewares/userAccount");
 const jwtToken = require("../utils/jwtToken");
 
 router.post("/userLogin", userAccount.login);
-router.get("/userTokenLogin", userAccount.createAccount);
+router.post('/signup', userAccount.createAccount);
 
 module.exports = router;

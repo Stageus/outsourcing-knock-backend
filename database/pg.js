@@ -12,10 +12,10 @@ const config = {
 };
 
 module.exports =  class Postgres {
-    Postgres(){
+    Postgres(){                     // postgres 객체를 생성합니다.
         this.connectionPool = null;
     }
-    async connect(){
+    async connect(){                // postgresql 데이터베이스와 연결합니다.
         try{
             this.connectionPool = new Client(config);
             await this.connectionPool.connect();
@@ -26,7 +26,7 @@ module.exports =  class Postgres {
         }
     }
 
-    async queryExecute(sql, parameter){
+    async queryExecute(sql, parameter){ // 파라미터로 받은 쿼리를 실행하고 결과값을 return합니다.
         try{
             const result = await this.connectionPool.query(sql,parameter);
             return result;
@@ -37,7 +37,7 @@ module.exports =  class Postgres {
 
     }
 
-    async queryUpdate(sql, parameter){
+    async queryUpdate(sql, parameter){  // 파라미터로 받은 쿼리를 실행합니다.
         try{
             await this.connectionPool.query(sql,parameter);
         }
@@ -46,7 +46,7 @@ module.exports =  class Postgres {
         }
     }
 
-    async disconnect(){
+    async disconnect(){                 // 데이터베이스와의 연결을 끊습니다.
         await this.connectionPool.end();
     }
 }
