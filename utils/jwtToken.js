@@ -1,4 +1,4 @@
-/*
+
 const jwt = require("jsonwebtoken");
 const dotenv = require('dotenv');
 const { TokenIssueError, } = require("../errors/error");
@@ -9,12 +9,11 @@ const config = {
     secretKey : process.env.TOKEN_SECRETKEY,
 }
 
-module.exports.issueToken = async (reqId, reqPw) =>{
+module.exports.issueToken = async (reqId) =>{
     try{
         const signedJwt = jwt.sign(
             { // payload
-                id : reqId,
-                pw : reqPw, 
+                id : reqId, 
             },
             config.secretKey,
             { // options
@@ -22,12 +21,11 @@ module.exports.issueToken = async (reqId, reqPw) =>{
                 issuer : "knock",
             }
         )
+        return signedJwt;
     }
     catch(err){
         throw new TokenIssueError(err);
     }
-
-    return signedJwt;
 };
 
 module.exports.openToken = (token) => {
@@ -36,4 +34,4 @@ module.exports.openToken = (token) => {
     const result = JSON.parse(payload.toString());
 
     return result;
-}*/
+}

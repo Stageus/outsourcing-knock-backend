@@ -1,7 +1,8 @@
-const {Client} = require('pg');
+const {Pool} = require('pg');
 const dotenv = require('dotenv');
 const {PostgreConnectionError, SqlSyntaxError} = require("../errors/error.js");
 const path = require('path');
+const format = require('pg-format');
 dotenv.config({path : path.join(__dirname, "../config/.env")});
 const config = {
     user: process.env.POSTGRESQL_USER,
@@ -9,16 +10,20 @@ const config = {
     database : process.env.POSTGRESQL_DBNAME,
     password : process.env.POSTGRESQL_PASSWORD,
     port : process.env.POSTGRESQL_PORT,
+    connectionTimeoutMillis: 10000,
+    max : 3,
 };
+
 
 module.exports =  class Postgres {
     Postgres(){                     // postgres 객체를 생성합니다.
-        this.connectionPool = null;
+        this.client = null;
+        this.pool = null;
     }
     async connect(){                // postgresql 데이터베이스와 연결합니다.
         try{
-            this.connectionPool = new Client(config);
-            await this.connectionPool.connect();
+            this.pool = new Pool(config);
+            this.client = await this.pool.connect();
             return;
         }
         catch(err){
@@ -28,7 +33,7 @@ module.exports =  class Postgres {
 
     async queryExecute(sql, parameter){ // 파라미터로 받은 쿼리를 실행하고 결과값을 return합니다.
         try{
-            const result = await this.connectionPool.query(sql,parameter);
+            const result = await this.client.query(sql,parameter);
             return result;
         }
         catch(err){
@@ -39,7 +44,7 @@ module.exports =  class Postgres {
 
     async queryUpdate(sql, parameter){  // 파라미터로 받은 쿼리를 실행합니다.
         try{
-            await this.connectionPool.query(sql,parameter);
+            await this.client.query(sql,parameter);
         }
         catch(err){
             throw new SqlSyntaxError(err);
@@ -47,7 +52,12 @@ module.exports =  class Postgres {
     }
 
     async disconnect(){                 // 데이터베이스와의 연결을 끊습니다.
-        await this.connectionPool.end();
+        try{
+            this.client.release(true);
+        }
+        catch(err){
+            console.log(err);
+        }
     }
 }
         

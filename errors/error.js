@@ -72,10 +72,10 @@ class TokenExpiredError extends Error {
   }
 }
 
-class NullExceptionError extends Error{
-    NullExceptionError(){
+class NullParameterError extends Error{
+    NullParameterError(){
         this.message = "정의되지 않은 요청값이 존재합니다."
-        this.name = 'NullExceptionError';
+        this.name = 'NullParameterError';
         this.stack = `${this.message}\n${new Error().stack}`;
     }
 }
@@ -90,5 +90,5 @@ module.exports = {
   MongoDeleteError,
   TokenIssueError,
   TokenExpiredError,
-  NullExceptionError,
+  NullParameterError,
 };
