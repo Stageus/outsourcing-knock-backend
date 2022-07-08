@@ -7,12 +7,3 @@ module.exports.nullCheck = async(...arg) =>{
         }
     }))
 }
-
-module.exports.getMultipleQueryParameter = async(parameterArray, fixedParameter) =>{
-    result = [];
-
-    parameterArray.forEach((elem)=>{
-        result.push([elem, fixedParameter]);
-    })
-    return result;
-}

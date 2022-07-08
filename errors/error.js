@@ -74,11 +74,28 @@ class TokenExpiredError extends Error {
 
 class NullParameterError extends Error{
     NullParameterError(){
-        this.message = "정의되지 않은 요청값이 존재합니다."
+        this.message = "정의되지 않은 요청값이 존재합니다.";
         this.name = 'NullParameterError';
         this.stack = `${this.message}\n${new Error().stack}`;
     }
 }
+
+class SendMailError extends Error{
+    SendMailError(){
+        this.message = "메일 송신 중 오류가 발생하였습니다.";
+        this.name = 'SendMailError';
+        this.stack = `${this.message}\n${new Error().stack}`;
+    }
+}
+
+class CreatedHashedPaswordError extends Error{
+    CreatedHashedPaswordError(err){
+        this.message = "hash password 생성 중 오류가 발생하였습니다.";
+        this.name = error.name;
+        this.stack = error.stack;
+    }
+}
+
 
 module.exports = {
   BadRequestError,
@@ -91,4 +108,6 @@ module.exports = {
   TokenIssueError,
   TokenExpiredError,
   NullParameterError,
+  SendMailError,
+  CreatedHashedPaswordError,
 };

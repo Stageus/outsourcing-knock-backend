@@ -17,7 +17,7 @@ module.exports.issueToken = async (reqId) =>{
             },
             config.secretKey,
             { // options
-                expiresIn: "10m",
+                expiresIn: "100m",
                 issuer : "knock",
             }
         )
@@ -32,6 +32,10 @@ module.exports.openToken = (token) => {
     const base64Payload = token.split('.')[1];
     const payload = Buffer.from(base64Payload, 'base64');
     const result = JSON.parse(payload.toString());
-
+    
     return result;
+}
+
+module.exports.parseToken = (token) =>{
+    return token.split(" ")[1];
 }

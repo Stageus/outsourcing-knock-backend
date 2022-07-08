@@ -1,29 +1,31 @@
+const jwt = require("jsonwebtoken");
+const tokenUtil = require('../utils/jwtToken');
+const parameter = require('../utils/parameter');
+const {NullParameterError, TokenExpiredError} = require('../errors/error');
 
-/* 
-토큰 검사하는 부분에 요청을 보낸 사람이 진짜 토큰 주인인지를 테스트하는 부분도 필요할 것 같아요
-*/
-module.exports.verifyToken = (req, res, next) =>{
-    const resultObj = {
-        status : 'false', // status value : valid | expired | invalid
-        message : '',
-    };
-
+module.exports.verifyToken = async(req, res, next) =>{
     try{
-        req.decoded = jwt.verify(req.headers.auth, secretKey);     
+        const userId = req.body.userId || req.params.userid;
+        const token = tokenUtil.parseToken(req.headers.authorization);
+        await parameter.nullCheck(userId, token);
+
+        req.decoded = await jwt.verify(token, process.env.TOKEN_SECRETKEY); // 토큰이 유효한지 체크합니다.
+        
+        if(userId != tokenUtil.openToken(token).id) // API 요청을 한 사용자의 id와 토큰에 들어있는 id가 다른지 체크합니다.
+            return res.status(401).send();          // 다르다면 401번 응답을 보냅니다.
+    
         next();
     }
     catch (err) {
-        if (err === TokenExpiredError) {
-            resultObj.status = 'expired';
-            resultObj.message = 'token expired';
+        
+        if(err instanceof NullParameterError)
+            return res.status(400).send();
 
-            return res.status(419).send(resultObj);
+        if (err.name ="TokenExpiredError") {   // 토큰이 만료됐습니다.
+            return res.status(419).send();
         }
         else{
-            resultObj.status = 'invalid';
-            resultObj.status = 'token is invalid';
-
-            return res.status(401).send(resultObj);
+            return res.status(401).send();
         }
     }
 };
