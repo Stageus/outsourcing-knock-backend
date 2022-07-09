@@ -9,7 +9,7 @@ const config = {
     secretKey : process.env.TOKEN_SECRETKEY,
 }
 
-module.exports.issueToken = async (reqId) =>{
+module.exports.issueToken = async (reqId, expire = "100m") =>{
     try{
         const signedJwt = jwt.sign(
             { // payload
@@ -17,7 +17,7 @@ module.exports.issueToken = async (reqId) =>{
             },
             config.secretKey,
             { // options
-                expiresIn: "100m",
+                expiresIn: expire,
                 issuer : "knock",
             }
         )

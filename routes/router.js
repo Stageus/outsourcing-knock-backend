@@ -20,6 +20,7 @@ router.get('/banners/:bannerid', banner.getBannerDetail);
 router.get('/banners', banner.getBannerList);
 
 router.get('/recommendation-experts', expert.getRecommendedExpertsList);
-
+router.post('/experts/signup', expert.createAccount);
+router.post('/experts/signin', expert.login);
 
 module.exports = router;

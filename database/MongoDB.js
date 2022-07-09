@@ -53,13 +53,18 @@ module.exports = class Mongo {
         }
     }
 
-    async createLog(id, api, req, res){
+    async disconnect(){
+        this.connectionPool.disconnect();
+    }
+
+    async createLog(api, header, req, res, msg){
         const LogContent = { 
             "log_time": new Date(),
-            "user_id": id,
-            "api_type": api,
+            "api_type": api, // req.Url
+            "header_data" : header,
             "req_data": req,
             "res_data": res,
+            "err_msg" : msg,
         };
     
         try{
