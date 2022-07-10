@@ -22,5 +22,6 @@ router.get('/banners', banner.getBannerList);
 router.get('/recommendation-experts', expert.getRecommendedExpertsList);
 router.post('/experts/signup', expert.createAccount);
 router.post('/experts/signin', expert.login);
+router.get('/experts/:expertId/register', expert.getRegisterInfo);
 
 module.exports = router;

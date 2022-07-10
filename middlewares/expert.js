@@ -199,3 +199,68 @@ module.exports.createAccount = async(req,res)=>{
         await pg.disconnect();
     }
 }
+
+// 전문가 등록 정보 가져오기
+module.exports.getRegisterInfo = async(req, res)=>{
+    const pg = new postgres();
+    const expertId = parseInt(req.params.expertId);
+    
+    try{
+        await pg.connect();
+        const result = await pg.queryExecute(
+            `
+            SELECT E.expert_index, name, email, password, phone_number, expert_type, profile_img_url, id_card_img_url, bankbook_copy_img_url, education, 
+                (SELECT ARRAY_AGG(education_img_url) FROM knock.expert_education_img WHERE expert_index = E.expert_index) AS education_img_url, 
+                qualification, career, 
+                (SELECT ARRAY_AGG(career_img_url) FROM knock.expert_career_img WHERE expert_index = E.expert_index) AS career_img_url
+            FROM knock.expert AS E
+	            JOIN knock.have_expert_type AS H ON E.expert_index = H.expert_index
+	            JOIN knock.expert_type AS T ON H.expert_type_index = T.expert_type_index
+            WHERE E.expert_index = $1;
+            `
+        ,[expertId]);
+        
+        console.log(result.rows[0].career_img_url);
+
+        if(result.rowCount == 0){
+            // 해당하는 expert가 없음
+            return res.status(400).send();
+        }
+        else if(result.rowCount > 1){
+            // 같은 id expert가 두 개
+            return res.status(400).send();
+        }
+
+        return res.status(200).send({
+            name : result.rows[0].name,
+            email : result.rows[0].email,
+            password : result.rows[0].password,
+            call : result.rows[0].phone_number, 
+            expertType : result.rows[0].expert_type,
+            profileImgUrl : result.rows[0].profile_img_url,
+            idCardImgUrl : result.rows[0].id_card_img_url,
+            bankBookImgUrl : result.rows[0].bankbook_copy_img_url,
+            education : result.rows[0].education,
+            educationImgUrl : result.rows[0].education_img_url,
+            qualification : result.rows[0].qualification,
+            career : result.rows[0].career,
+            careerImgUrl : result.rows[0].career_img_url,
+        });
+    }
+    catch{
+        if(err instanceof NullParameterError)
+            return res.status(400).send();
+        if(err instanceof PostgreConnectionError)
+            return res.status(500).send();
+        if(err instanceof SqlSyntaxError)
+            return res.status(409).send();
+    }
+    finally{
+        await pg.disconnect();
+    }
+}
+
+// 전문가 등록 신청
+module.exports.register = async(req,res)=>{
+    
+}
