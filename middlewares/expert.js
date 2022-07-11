@@ -4,6 +4,7 @@ const parameter = require('../utils/parameter');
 const {PostgreConnectionError, SqlSyntaxError, NullParameterError, CreatedHashedPaswordError} = require('../errors/error');
 const hasing = require('../utils/password');
 const jwtToken = require('../utils/jwtToken');
+const array2String = require('../utils/array2String');
 
 //추천 전문가 리스트 가져오기 (3명)
 module.exports.getRecommendedExpertsList = async(req,res) =>{
@@ -247,7 +248,7 @@ module.exports.getRegisterInfo = async(req, res)=>{
             careerImgUrl : result.rows[0].career_img_url,
         });
     }
-    catch{
+    catch(err){
         if(err instanceof NullParameterError)
             return res.status(400).send();
         if(err instanceof PostgreConnectionError)
@@ -262,5 +263,131 @@ module.exports.getRegisterInfo = async(req, res)=>{
 
 // 전문가 등록 신청
 module.exports.register = async(req,res)=>{
+    const pg = new postgres();
+    const expertId = parseInt(req.params.expertId);
+
+    const education = req.body.education;
+    const educationImgUrlList = req.body.educationImgUrl;
+    const qualification = req.body.qualification;
+    const career = req.body.career;
+    const careerImgUrlList = req.body.careerImgUrl;
+
+    try{
+        await parameter.nullCheck(education, educationImgUrlList, qualification, career, careerImgUrlList);
+        await pg.connect();
+        await pg.queryUpdate(`BEGIN;`);
+        await pg.queryUpdate(
+            `
+            INSERT INTO knock.register_wait (expert_index) VALUES($1);
+            `
+        , [expertId]);
+
+        await pg.queryUpdate(
+            `
+            UPDATE knock.expert SET education = $2, qualification = $3, career = $4 WHERE expert_index = $1;
+            `
+        , [expertId, education, qualification, career]);
+
+        if(educationImgUrlList.length != 0){
+            await pg.queryUpdate(
+                `
+                DELETE FROM knock.expert_education_img WHERE expert_index = $1;
+                `
+            , [expertId]);
+
+            await pg.queryUpdate(
+                `
+                INSERT INTO knock.expert_education_img(expert_index, education_img_url) 
+                    VALUES($1, unnest(ARRAY[${array2String.convertArrayFormat(educationImgUrlList)}]));
+                `
+            , [expertId]);
+        }
+        if(careerImgUrlList.length != 0){
+            await pg.queryUpdate(
+                `
+                DELETE FROM knock.expert_career_img WHERE expert_index = $1;
+                `
+            , [expertId]);
+
+            await pg.queryUpdate(
+                `
+                INSERT INTO knock.expert_career_img(expert_index, career_img_url) 
+                    VALUES($1, unnest(ARRAY[${array2String.convertArrayFormat(careerImgUrlList)}]));
+                `
+            , [expertId]);
+        }
+
+        return res.status(200).send({
+            msg : "success",
+        });
+    }
+    catch(err){
+        await pg.queryUpdate(`ROLLBACK;`);
+        if(err instanceof NullParameterError)
+            return res.status(400).send({
+                msg : "There is null parameter",
+            });
+        if(err instanceof PostgreConnectionError)
+            return res.status(500).send();
+        if(err instanceof SqlSyntaxError)
+            return res.status(409).send();
+    }
+    finally{
+        await pg.queryUpdate(`END;`);
+        pg.disconnect();
+    }
+}
+
+// 전문가 비밀번호 찾기
+module.exports.resetPassword = async(req, res)=>{
+    const pg = new postgres();
+    const email = req.body.email;
+
+    try{
+        await parameter.nullCheck(email);
+        const tmpPassword = Math.random().toString(36).substring(2,11);
+        const hashedPassword =  await hasing.createHashedPassword(tmpPassword);
+        await pg.connect();
+        await pg.queryUpdate(
+            `
+            UPDATE knock.expert SET password = $1 WHERE email = $2;
+            `
+        ,[hashedPassword, email])
+        
+        await mailer.sendMail(tmpPassword, email);
+        return res.status(200).send();
+    }
+    catch(err){
+        console.log(err);
+        if(err instanceof NullParameterError)
+            return res.status(400).send();
     
+        if(err instanceof PostgreConnectionError)
+            return res.status(500).send();
+
+        if(err instanceof SqlSyntaxError)
+            return res.status(409).send();
+
+        if(err instanceof SendMailError)
+            return res.status(500).send();
+    }
+    finally{
+        pg.disconnect();
+    }
+}
+
+// 안심번호 발급
+module.exports.issueSafetyNumber = async(req, res)=>{
+}
+
+// 전문가 프로필 정보 가져오기
+module.exports.getProfile = async(req, res) =>{
+    const pg = new postgres();
+    const expertId = parseInt(req.params.expertId);
+
+
+}
+
+// 전문가 프로필 정보 수정하기
+module.exports.updateProfile = async(req, res) =>{
 }

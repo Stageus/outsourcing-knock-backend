@@ -23,5 +23,7 @@ router.get('/recommendation-experts', expert.getRecommendedExpertsList);
 router.post('/experts/signup', expert.createAccount);
 router.post('/experts/signin', expert.login);
 router.get('/experts/:expertId/register', expert.getRegisterInfo);
+router.post('/experts/:expertId/register', expert.register);
+router.post('/experts/password-reminder', expert.resetPassword);
 
 module.exports = router;
