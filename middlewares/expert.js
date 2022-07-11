@@ -372,7 +372,7 @@ module.exports.resetPassword = async(req, res)=>{
             return res.status(500).send();
     }
     finally{
-        pg.disconnect();
+        await pg.disconnect();
     }
 }
 
@@ -385,7 +385,54 @@ module.exports.getProfile = async(req, res) =>{
     const pg = new postgres();
     const expertId = parseInt(req.params.expertId);
 
+    try{
+        await pg.connect();
+        const result = await pg.queryExecute(
+            `SELECT E.expert_index AS index, name, ET.expert_type, phone_number, profile_img_url, education, 
+                (SELECT ARRAY_AGG(education_img_url) FROM knock.expert_education_img WHERE expert_index = E.expert_index) AS education_img_url,
+                qualification, career,
+                (SELECT ARRAY_AGG(career_img_url) FROM knock.expert_career_img WHERE expert_index = E.expert_index) AS career_img_url,
+                (SELECT ARRAY_AGG(counseling_method) FROM knock.counseling_method_1st AS CM1 JOIN knock.expert_counseling_method_1st AS ECM1 ON CM1.counseling_method_1st_index = ECM1.counseling_method_1st_index
+                    WHERE ECM1.expert_index = E.expert_index) AS method1,
+                (SELECT ARRAY_AGG(counseling_method) FROM knock.counseling_method_2nd AS CM2 JOIN knock.expert_counseling_method_2nd AS ECM2 ON CM2.counseling_method_2nd_index = ECM2.counseling_method_2nd_index
+                    WHERE ECM2.expert_index = E.expert_index) AS method2,
+                (SELECT ARRAY_AGG(counseling_method) FROM knock.counseling_method_3rd AS CM3 JOIN knock.expert_counseling_method_3rd AS ECM3 ON CM3.counseling_method_3rd_index = ECM3.counseling_method_3rd_index
+                    WHERE ECM3.expert_index = E.expert_index) AS method3,
+                (SELECT ARRAY_AGG(type) FROM knock.counseling_type AS CT JOIN knock.expert_counseling_type AS ECT ON CT.counseling_type_index = ECT.counseling_type_index
+                    WHERE ECT.expert_index = E.expert_index) AS counseling_type,
+                (SELECT row_to_json(ACT) AS available_counseling_time FROM (SELECT monday, tuesday, wednesday, thursday, friday, saturday, sunday FROM knock.available_counseling_time) AS ACT), introduction_title, introduction_contents
+            FROM knock.expert AS E
+                JOIN knock.have_expert_type AS HET ON E.expert_index = HET.expert_index
+                JOIN knock.expert_type AS ET ON HET.expert_type_index = ET.expert_type_index
+            WHERE E.expert_index = $1;
+            `
+        , [expertId]);
 
+        if(result.rowCount == 0){
+            // 해당 프로필 정보가 없음
+            return res.status(400).send();
+        }
+        else if(result.rowCount > 0){
+            // 테이블 내용 오류
+            return res.status(400).send();
+        }
+    }
+    catch(err){
+        if(err instanceof NullParameterError)
+            return res.status(400).send();
+
+        if(err instanceof PostgreConnectionError)
+            return res.status(500).send();
+
+        if(err instanceof SqlSyntaxError)
+            return res.status(409).send();
+
+        if(err instanceof SendMailError)
+            return res.status(500).send();
+    }
+    finally{
+        await pg.disconnect();
+    }
 }
 
 // 전문가 프로필 정보 수정하기
