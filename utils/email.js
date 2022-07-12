@@ -28,3 +28,29 @@ module.exports.sendMail = async(message, receiverMailAddress)=>{
         throw new SendMailError();
     }
 }
+
+module.exports.sendAuthenticationMail = async(userId, receiverMailAddress)=>{
+    const transporter = nodemailer.createTransport({
+        service : 'naver',
+        host : 'smtp.naver.com',
+        port : 465,
+        secure : false,
+        auth :{
+            user: process.env.MAILER_USER,
+            pass : process.env.MAILER_PASSWORD
+        }
+    });
+
+    try{
+        await transporter.sendMail({
+            from : process.env.MAILER_EMAIL,
+            to : receiverMailAddress,
+            subject : `knock 이메일 인증`,
+            html : 
+            `<a href="http://54.180.79.110:4000/users/${userId}/email-authentication">여기를 클릭하시면 이메일이 인증됩니다.</a>`
+        })
+    }
+    catch(err){
+        throw new SendMailError();
+    }
+}

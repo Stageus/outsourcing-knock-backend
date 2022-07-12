@@ -104,7 +104,6 @@ module.exports.resetPassword = async(req,res) =>{
         return res.status(200).send();
     }
     catch(err){
-        console.log(err);
         if(err instanceof NullParameterError)
             return res.status(400).send();
     
@@ -163,4 +162,249 @@ module.exports.getAlarmList = async(req,res) =>{
     finally{
         await pg.disconnect();
     }   
+}
+
+module.exports.addFavoriteExpert = async(req, res) =>{
+    const pg = new postgres();
+    const userId = req.params.userid;
+    const expertId = req.body.expertId;
+    
+    try{
+        await parameter.nullCheck(userId, expertId);
+        await pg.connect();
+        await pg.queryExecute(
+            `
+            INSERT INTO knock.favorite_expert (user_index, expert_index)
+            VALUES($1, $2);
+            `
+        ,[userId, expertId]);
+        
+        return res.status(200).send();
+    }
+    catch(err){
+
+        console.log(err);
+        if(err instanceof NullParameterError)
+            return res.status(400).send();
+        
+        if(err instanceof PostgreConnectionError)
+            return res.status(500).send();
+
+        if(err instanceof SqlSyntaxError)
+            return res.status(500).send();
+        }
+    finally{
+        pg.disconnect();
+    }
+}
+
+module.exports.deleteFavoriteExpert = async(req, res) =>{
+    const pg = new postgres();
+    const userId = req.params.userid;
+    const expertId = req.body.expertId;
+    
+    try{
+        await parameter.nullCheck(userId, expertId);
+        await pg.connect();
+        await pg.queryExecute(
+            `
+            DELETE FROM knock.favorite_expert WHERE user_index = $1 AND expert_index = $2;
+            `
+        ,[userId, expertId]);
+        
+        return res.status(200).send();
+    }
+    catch(err){
+        if(err instanceof NullParameterError)
+            return res.status(400).send();
+        
+        if(err instanceof PostgreConnectionError)
+            return res.status(500).send();
+
+        if(err instanceof SqlSyntaxError)
+            return res.status(500).send();
+        }
+    finally{
+        pg.disconnect();
+    }
+}
+
+module.exports.getUserInformation = async(req,res) =>{
+    const pg = new postgres();
+    const userId = req.params.userid;
+
+    try{
+        await parameter.nullCheck(userId);
+        await pg.connect();
+        const result = await pg.queryExecute(
+            `
+            SELECT id AS email, nickname, email_certification AS is_email_certified FROM knock.users WHERE user_index = $1;
+            `
+        ,[userId]);
+
+        return res.status(200).send(result.rows[0]);
+    }
+    catch(err){
+        if(err instanceof NullParameterError)
+            return res.status(400).send();
+        
+        if(err instanceof PostgreConnectionError)
+            return res.status(500).send();
+
+        if(err instanceof SqlSyntaxError)
+            return res.status(500).send();
+    }
+    finally{
+        pg.disconnect();
+    }
+}
+
+module.exports.sendAuthenticationEmail = async(req,res) =>{
+    const userId = req.params.userid;
+    const pg = new postgres();
+    try{
+        await parameter.nullCheck(userId);
+        await pg.connect();
+        const result = await pg.queryExecute(
+            `
+            SELECT id AS email FROM knock.users WHERE user_index = $1;
+            `
+        ,[userId])
+        await mailer.sendAuthenticationMail(userId, result.rows[0].email);
+        return res.status(200).send();
+    }
+    catch(err){
+        if(err instanceof NullParameterError)
+            return res.status(400).send();
+
+        if(err instanceof PostgreConnectionError)
+            return res.status(500).send();
+
+        if(err instanceof SqlSyntaxError)
+            return res.status(500).send();
+
+        if(err instanceof SendMailError)
+            return res.status(500).send();
+    }
+    finally{
+        pg.disconnect();
+    }
+}
+
+module.exports.authenticateUserEmail = async(req,res) =>{
+    const userId = req.params.userid;
+    const pg = new postgres();
+    try{
+        await parameter.nullCheck(userId);
+        await pg.connect();
+        await pg.queryUpdate(
+            `
+            UPDATE knock.users SET email_certification = true WHERE user_index = $1;
+            `
+        ,[userId])
+        return res.status(200).send("<script>window.close();</script >");
+    }
+    catch(err){
+        if(err instanceof NullParameterError)
+            return res.status(400).send();
+
+        if(err instanceof PostgreConnectionError)
+            return res.status(500).send();
+
+        if(err instanceof SqlSyntaxError)
+            return res.status(500).send();
+    }
+    finally{
+        pg.disconnect();
+    }
+}
+
+module.exports.modifyUserInformation = async(req, res) =>{
+    const userId = req.params.userid;
+    const password = req.body.password;
+    const nickname = req.body.nickname;
+    const pg = new postgres();
+    try{
+        await parameter.nullCheck(userId, password, nickname);
+        const hashedPassword = await hasing.createHashedPassword(password);
+        await pg.connect();
+        await pg.queryUpdate(
+            `
+            UPDATE knock.users SET password = $1, nickname =$2 WHERE user_index = $3;
+            `
+        ,[hashedPassword, nickname, userId]);
+        return res.status(200).send();
+    }
+    catch(err){
+        if(err instanceof NullParameterError)
+            return res.status(400).send();
+
+        if(err instanceof PostgreConnectionError)
+            return res.status(500).send();
+
+        if(err instanceof SqlSyntaxError)
+            return res.status(500).send();
+    }
+    finally{
+        pg.disconnect();
+    }
+}
+
+
+module.exports.deleteUserInformation = async(req,res) =>{
+    const userId = req.params.userid;
+    const pg = new postgres();
+    try{
+        await parameter.nullCheck(userId);
+        await pg.connect();
+        await pg.queryUpdate(
+            `
+            UPDATE knock.users SET user_status = 'withdrawal' WHERE user_index = $1;
+            `
+        ,[userId])
+        return res.status(200).send();
+    }
+    catch(err){
+        if(err instanceof NullParameterError)
+            return res.status(400).send();
+
+        if(err instanceof PostgreConnectionError)
+            return res.status(500).send();
+
+        if(err instanceof SqlSyntaxError)
+            return res.status(500).send();
+    }
+    finally{
+        pg.disconnect();
+    }
+}
+
+
+module.exports.kakaoLogin = async(req, res) =>{
+    const pg = new postgres();
+    try{
+        pg.connect();
+        pg.queryExecute(
+            `
+            INSERT INTO knock.users (user_id, nickname, platform) 
+            VALUES($1, $2, 'kakao');
+            `
+        ,[])
+
+
+        return res.status(200).send();
+    }
+    catch(err){
+        if(err instanceof NullParameterError)
+            return res.status(400).send();
+
+        if(err instanceof PostgreConnectionError)
+            return res.status(500).send();
+
+        if(err instanceof SqlSyntaxError)
+            return res.status(500).send();
+    }
+    finally{
+        pg.disconnect();
+    }
 }
