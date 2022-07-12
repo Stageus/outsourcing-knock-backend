@@ -33,12 +33,14 @@ router.get('/banners', banner.getBannerList);
 router.get('/recommendation-experts', expert.getRecommendedExpertsList);
 router.post('/experts/signup', expert.createAccount);
 router.post('/experts/signin', expert.login);
-router.get('/experts/:expertId/register', expert.getRegisterInfo);
-router.post('/experts/:expertId/register', expert.register);
+router.route('/experts/:expertId/register')
+    .get(expert.getRegisterInfo)
+    .post(expert.register);
 router.post('/experts/password-reminder', expert.resetPassword);
 router.get('/safety-number/:phone_number', expert.issueSafetyNumber);
-router.get('/experts/:expertId/profile', expert.getProfile);
-router.post('/experts/:expertId/profile', expert.updateProfile);
+router.route('/experts/:expertId/profile')
+    .get(expert.getProfile)
+    .post(expert.updateProfile);
 
 //
 

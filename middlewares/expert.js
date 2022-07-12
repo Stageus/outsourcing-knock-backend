@@ -391,7 +391,8 @@ module.exports.getProfile = async(req, res) =>{
     try{
         await pg.connect();
         const result = await pg.queryExecute(
-            `SELECT E.expert_index AS index, name, ET.expert_type, phone_number, profile_img_url, education, 
+            `
+            SELECT E.expert_index AS index, name, ET.expert_type, phone_number, profile_img_url, education, 
                 (SELECT ARRAY_AGG(education_img_url) FROM knock.expert_education_img WHERE expert_index = E.expert_index) AS education_img_url,
                 qualification, career,
                 (SELECT ARRAY_AGG(career_img_url) FROM knock.expert_career_img WHERE expert_index = E.expert_index) AS career_img_url,
@@ -413,12 +414,18 @@ module.exports.getProfile = async(req, res) =>{
 
         if(result.rowCount == 0){
             // 해당 프로필 정보가 없음
+            console.log("프로필 정보가 없음");
             return res.status(400).send();
         }
-        else if(result.rowCount > 0){
+        else if(result.rowCount > 1){
             // 테이블 내용 오류
+            console.log("테이블 내용 오류");
             return res.status(400).send();
         }
+
+        return res.status(200).send(
+            result
+        );
     }
     catch(err){
         if(err instanceof NullParameterError)
@@ -458,17 +465,19 @@ module.exports.updateProfile = async(req, res) =>{
     const introContent = req.body.introContent;
 
     try{
+        await parameter.nullCheck(profileImgUrl, education, educationImgUrlList, qualification, career, careerImgUrlList, method1List, method2List, method3List, counselingTypeList, availableTime, introTitle, introContent);
         await pg.connect();
         await pg.queryUpdate(`BEGIN;`);
+    
         await pg.queryUpdate(
             `
-            UPDATE knock.expert 
+            UPDATE knock.expert
                 SET profile_img_url = $2,
                 education = $3,
                 qualification = $4,
                 career = $5,
                 introduction_title = $6,
-                introduction_content = $7
+                introduction_contents = $7
             WHERE expert_index = $1;
             `
         , [expertId, profileImgUrl, education, qualification, career, introTitle, introContent]);
@@ -497,6 +506,7 @@ module.exports.updateProfile = async(req, res) =>{
             `
         , [expertId]);
 
+        // counseling method
         await pg.queryUpdate(
             `
             DELETE FROM knock.expert_counseling_method_1st WHERE expert_index = $1;
@@ -505,20 +515,79 @@ module.exports.updateProfile = async(req, res) =>{
 
         await pg.queryUpdate(
             `
-            INSERT INTO knock.expert_counseling_method_1st 
-            VALUES($1, (SELECT counseling_method_1st_index FROM knock.counseling_method_1st WHERE counseling_method in $2));
+            INSERT INTO knock.expert_counseling_method_1st
+            VALUES($1, unnest(ARRAY[(SELECT ARRAY_AGG(counseling_method_1st_index) FROM knock.counseling_method_1st WHERE counseling_method in (${array2String.convertArrayFormat(method1List)}))]));
             `
-        , [expertId, method1List]);
+        , [expertId]);
 
-        res.status(200).send('test');
+        await pg.queryUpdate(
+            `
+            DELETE FROM knock.expert_counseling_method_2nd WHERE expert_index = $1;
+            `
+        , [expertId]);
+
+        await pg.queryUpdate(
+            `
+            INSERT INTO knock.expert_counseling_method_2nd
+            VALUES($1, unnest(ARRAY[(SELECT ARRAY_AGG(counseling_method_2nd_index) FROM knock.counseling_method_2nd WHERE counseling_method in (${array2String.convertArrayFormat(method2List)}))]));
+            `
+        , [expertId]);
+
+        await pg.queryUpdate(
+            `
+            DELETE FROM knock.expert_counseling_method_3rd WHERE expert_index = $1;
+            `
+        , [expertId]);
+
+        await pg.queryUpdate(
+            `
+            INSERT INTO knock.expert_counseling_method_3rd
+            VALUES($1, unnest(ARRAY[(SELECT ARRAY_AGG(counseling_method_3rd_index) FROM knock.counseling_method_3rd WHERE counseling_method in (${array2String.convertArrayFormat(method3List)}))]));
+            `
+        , [expertId]);
+        //
+
+        await pg.queryUpdate(
+            `
+            DELETE FROM knock.expert_counseling_type WHERE expert_index = $1;
+            `
+        , [expertId]);
+
+        await pg.queryUpdate(
+            `
+            INSERT INTO knock.expert_counseling_type
+            VALUES(unnest(ARRAY[(SELECT ARRAY_AGG(counseling_type_index) FROM knock.counseling_type WHERE type in (${array2String.convertArrayFormat(counselingTypeList)}))]), $1);
+            `
+        , [expertId]);
+        
+        await pg.queryUpdate(
+            `
+            UPDATE knock.available_counseling_time 
+            SET monday = $2, tuesday = $3, wednesday = $4, thursday = $5, friday = $6, saturday = $7, sunday = $8 WHERE expert_index = $1;
+            `
+        , [expertId, availableTime.Monday, availableTime.Tuesday, availableTime.Wednesday, availableTime.Thursday, availableTime.Friday, availableTime.Saturday, availableTime.Sunday]);
+
+        return res.status(200).send('test');
     }
     catch(err){
-        pg.queryUpdate(`ROLLBACK`);
+        await pg.queryUpdate(`ROLLBACK`);
+
+        if(err instanceof NullParameterError)
+            return res.status(400).send();
+        if(err instanceof PostgreConnectionError)
+            return res.status(500).send();
+        if(err instanceof SqlSyntaxError)
+            return res.status(409).send();
     }
     finally{
-        pg.queryUpdate(`END;`);
-        pg.disconnect();
+        await pg.queryUpdate(`END;`);
+        await pg.disconnect();
     }
+}
+
+// 안심번호 변경
+module.exports.changeSafetyNumber = async(req,res)=>{
+    // 안심번호 발급 시스템을 전달받은 후 개발
 }
 
 // dev_shin---end
