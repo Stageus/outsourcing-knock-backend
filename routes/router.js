@@ -41,7 +41,8 @@ router.get('/safety-number/:phone_number', expert.issueSafetyNumber);
 router.route('/experts/:expertId/profile')
     .get(expert.getProfile)
     .post(expert.updateProfile);
-
+router.route('/experts/:expertId/info')
+    .get(expert.getExpertInfo);
 //
 
 // dev_Lee

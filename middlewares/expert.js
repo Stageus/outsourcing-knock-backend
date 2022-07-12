@@ -424,7 +424,7 @@ module.exports.getProfile = async(req, res) =>{
         }
 
         return res.status(200).send(
-            result
+            result // result를 그대로 보내지마
         );
     }
     catch(err){
@@ -567,7 +567,7 @@ module.exports.updateProfile = async(req, res) =>{
             `
         , [expertId, availableTime.Monday, availableTime.Tuesday, availableTime.Wednesday, availableTime.Thursday, availableTime.Friday, availableTime.Saturday, availableTime.Sunday]);
 
-        return res.status(200).send('test');
+        return res.status(200).send();
     }
     catch(err){
         await pg.queryUpdate(`ROLLBACK`);
@@ -588,6 +588,37 @@ module.exports.updateProfile = async(req, res) =>{
 // 안심번호 변경
 module.exports.changeSafetyNumber = async(req,res)=>{
     // 안심번호 발급 시스템을 전달받은 후 개발
+}
+
+// 전문가 회원 정보 가져오기
+module.exports.getExpertInfo = async(req,res)=>{
+    const pg = new postgres();
+    const expertId = parseInt(req.params.expertId);
+
+    try{
+        await parameter.nullCheck(expertId);
+        await pg.connect();
+        const result = await pg.queryExecute(
+            `
+            SELECT name, email, phone_number AS call, (expert_status = 'dormancy') AS dormancy, (SELECT ARRAY_AGG(career_img_url) AS career_img_url FROM knock.expert_career_img)  
+            FROM knock.expert
+            WHERE expert_index = $1;
+            `
+        , [expertId]);
+
+        return res.status(200).send(result.rows[0]);
+    }
+    catch(err){
+        if(err instanceof NullParameterError)
+            return res.status(400).send();
+        if(err instanceof PostgreConnectionError)
+            return res.status(500).send();
+        if(err instanceof SqlSyntaxError)
+            return res.status(409).send();
+    }
+    finally{
+        await pg.disconnect();
+    }
 }
 
 // dev_shin---end
