@@ -10,6 +10,9 @@ router.route('/users/:userid/email-authentication')
         .post(jwtToken.verifyToken, userAccount.sendAuthenticationEmail)
         .get(userAccount.authenticateUserEmail);
 router.route('/users/:userid/favorites')
+    // dev_Lee
+    .get(jwtToken.verifyToken, userAccount.getFavoriteExpert)
+    //
     .post(jwtToken.verifyToken, userAccount.addFavoriteExpert)
     .delete(jwtToken.verifyToken, userAccount.deleteFavoriteExpert);
 router.get('/users/:userid/alarms', jwtToken.verifyToken, userAccount.getAlarmList);
@@ -45,7 +48,8 @@ router.post('/experts/:expertId/profile', expert.updateProfile);
 // dev_Lee
 router.get('/experts/types/:firstcategory/:secondcategory/:thirdcategory/:pagecount', expert.getExpertsList);
 router.get('/experts/:expertid', expert.getExpertDetail);
-
+router.post('/kakao', userAccount.kakaoLogin);
+router.post('/google', userAccount.googleLogin);
 //
 
 module.exports = router;

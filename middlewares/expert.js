@@ -16,7 +16,7 @@ module.exports.getRecommendedExpertsList = async(req,res) =>{
             `
             SELECT expert_index AS expert_id, name, introduction_contents AS introduction, profile_img_url,
             (SELECT COUNT(*) FROM knock.expert_review AS review WHERE review.expert_index = expert.expert_index) AS review_count,
-            (SELECT expert_type AS type FROM knock.have_expert_type INNER JOIN knock.expert_type ON have_expert_type.expert_type_index = expert_type.expert_type_index WHERE have_expert_type.expert_index = expert.expert_index)
+            (SELECT expert_type AS type FROM knock.have_expert_type INNER JOIN knock.expert_type ON have_expert_type.expert_index = expert.expert_index AND have_expert_type.expert_type_index = expert_type.expert_type_index)
             FROM knock.expert ORDER BY RANDOM() LIMIT 3;
             `
         ,[])
@@ -600,7 +600,6 @@ module.exports.getExpertDetail = async(req, res) =>{
     }
 }
 
-//TODO 결제 테이블 완성되면 쿼리 짜기. 지금은 상담방식을 가져올 수 없음
 module.exports.getBestReview = async(req,res) =>{
     const pg = new postgres();
     const expertId = req.params.expertid;
@@ -610,9 +609,16 @@ module.exports.getBestReview = async(req,res) =>{
         await pg.connect();
         const result = await pg.queryExecute(
             `
-            SELECT expert_reviews_index AS review_id, user_index AS user_id, 
+            SELECT expert_reviews_index AS review_id, user_index AS user_id, reviews AS review, writed_at,
+            (SELECT counseling_type FROM knock.payment_info WHERE payment_info.payment_info_index = expert_review.payment_info_index)
+            FROM knock.expert_review
+            WHERE expert_index = $1 AND is_best = true;
             `
         [expertId]);
+     
+        return res.status(200).send({
+            bestReviewList : result.rows
+        })
     }
     catch(err){
         if(err instanceof PostgreConnectionError)
@@ -630,18 +636,28 @@ module.exports.getBestReview = async(req,res) =>{
 
 }
 
-//TODO 결제 테이블 완성되면 쿼리 짜기
 module.exports.getReviewList = async(req,res) =>{
     const pg = new postgres();
     const expertId = req.params.expertid;
+    const pageCount = (req.params.pagecount-1) * 15;
 
     try{
         await parameter.nullCheck(expertId);
         await pg.connect();
         const result = await pg.queryExecute(
             `
+            SELECT expert_reviews_index AS review_id, user_index AS user_id, reviews AS review, writed_at,
+            (SELECT counseling_type FROM knock.payment_info WHERE payment_info.payment_info_index = expert_review.payment_info_index)
+            FROM knock.expert_review 
+            WHERE expert_index = $1 AND is_best = false
+            LIMIT 15 OFFSET $2
+            ORDER BY writed_at;
             `
-        [expertId]);
+        [expertId, pageCount]);
+
+        return res.status(200).send({
+            reviewList : result.rows
+        })
     }
     catch(err){
         if(err instanceof PostgreConnectionError)
@@ -656,6 +672,8 @@ module.exports.getReviewList = async(req,res) =>{
     finally{
         pg.disconnect();
     }
+
 }
+
 
 // dev_Lee---end

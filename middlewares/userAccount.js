@@ -238,7 +238,7 @@ module.exports.getUserInformation = async(req,res) =>{
         await pg.connect();
         const result = await pg.queryExecute(
             `
-            SELECT id AS email, nickname, email_certification AS is_email_certified FROM knock.users WHERE user_index = $1;
+            SELECT id AS email, nickname, email_certification AS is_email_certified, affiliates FROM knock.users WHERE user_index = $1;
             `
         ,[userId]);
 
@@ -382,17 +382,117 @@ module.exports.deleteUserInformation = async(req,res) =>{
 
 module.exports.kakaoLogin = async(req, res) =>{
     const pg = new postgres();
+    const email = req.body.email;
+    const identifier = req.body.user_number;
+    const nickname = "knock_"+Math.random().toString(36).substring(2,6);
+
     try{
-        pg.connect();
-        pg.queryExecute(
+        await parameter.nullCheck(email, identifier,nickname);
+        await pg.connect();
+        await pg.queryUpdate(
             `
-            INSERT INTO knock.users (user_id, nickname, platform) 
-            VALUES($1, $2, 'kakao');
+            INSERT INTO knock.users (id, nickname, platform, sns_identifier) 
+            VALUES($1, $2, 'kakao', $3)
+            ON CONFLICT DO NOTHING;
             `
-        ,[])
+        ,[email, nickname, identifier]);
+        
+        const result = await pg.queryExecute(
+            `
+            SELECT user_index FROM knock.users WHERE id = $1;
+            `
+        ,[email]);
+        const token = await jwtToken.issueToken(result.rows[0].user_index);
+        return res.status(200).send({
+            user_id : result.rows[0].user_index,
+            token : token
+        });
+    }
+    catch(err){
 
+        console.log(err);
+        if(err instanceof NullParameterError)
+            return res.status(400).send();
 
-        return res.status(200).send();
+        if(err instanceof PostgreConnectionError)
+            return res.status(500).send();
+
+        if(err instanceof SqlSyntaxError)
+            return res.status(500).send();
+
+        if(err instanceof TokenIssueError)
+            return res.status(500).send();
+    }
+    finally{
+        pg.disconnect();
+    }
+}
+
+module.exports.googleLogin = async(req, res) =>{
+    const pg = new postgres();
+    const email = req.body.email;
+    const identifier = req.body.user_number;
+    const nickname = "knock_"+Math.random().toString(36).substring(2,6);
+
+    try{
+        await parameter.nullCheck(email, identifier,nickname);
+        await pg.connect();
+        await pg.queryUpdate(
+            `
+            INSERT INTO knock.users (id, nickname, platform, sns_identifier) 
+            VALUES($1, $2, 'google', $3)
+            ON CONFLICT DO NOTHING;
+            `
+        ,[email, nickname, identifier]);
+        
+        const result = await pg.queryExecute(
+            `
+            SELECT user_index FROM knock.users WHERE id = $1;
+            `
+        ,[email]);
+        const token = await jwtToken.issueToken(result.rows[0].user_index);
+        return res.status(200).send({
+            user_id : result.rows[0].user_index,
+            token : token
+        });
+    }
+    catch(err){
+
+        if(err instanceof NullParameterError)
+            return res.status(400).send();
+
+        if(err instanceof PostgreConnectionError)
+            return res.status(500).send();
+
+        if(err instanceof SqlSyntaxError)
+            return res.status(500).send();
+
+        if(err instanceof TokenIssueError)
+            return res.status(500).send();
+    }
+    finally{
+        pg.disconnect();
+    }
+}
+
+module.exports.getFavoriteExpert = async(req,res) =>{
+    const pg = new postgres();
+    const userId = req.params.userid;
+
+    try{
+        await parameter.nullCheck(userId);
+        await pg.connect();
+        const result = await pg.queryExecute(
+            `
+            SELECT profile_img_url, name, introduction_contents, (SELECT COUNT(*) FROM knock.expert_review AS review WHERE review.expert_index = expert.expert_index) AS review_count, (SELECT expert_type AS type FROM knock.have_expert_type INNER JOIN knock.expert_type ON have_expert_type.expert_index = expert.expert_index AND have_expert_type.expert_type_index = expert_type.expert_type_index)
+            FROM knock.expert
+            WHERE expert_index IN (SELECT expert_index FROM knock.favorite_expert WHERE user_index = $1);
+            `
+        ,[userId]);
+
+        return res.status(200).send({
+            expertList : result.rows
+        })
     }
     catch(err){
         if(err instanceof NullParameterError)
