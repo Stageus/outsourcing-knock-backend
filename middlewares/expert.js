@@ -378,6 +378,7 @@ module.exports.resetPassword = async(req, res)=>{
 
 // 안심번호 발급
 module.exports.issueSafetyNumber = async(req, res)=>{
+    // 안심번호 발급 시스템을 전달받은 후 개발
 }
 
 // 전문가 프로필 정보 가져오기
@@ -437,4 +438,83 @@ module.exports.getProfile = async(req, res) =>{
 
 // 전문가 프로필 정보 수정하기
 module.exports.updateProfile = async(req, res) =>{
+    const pg = new postgres();
+    const expertId = parseInt(req.params.expertId);
+
+    const profileImgUrl = req.body.profileImgUrl;
+    const education = req.body.education;
+    const educationImgUrlList = req.body.educationImgUrl;
+    const qualification = req.body.qualification;
+    const career = req.body.career;
+    const careerImgUrlList = req.body.careerImgUrl;
+    const method1List = req.body.method1;
+    const method2List = req.body.method2;
+    const method3List = req.body.method3;
+    const counselingTypeList = req.body.counselingType;
+    const availableTime = req.body.availableTime;
+    const introTitle = req.body.introTitle;
+    const introContent = req.body.introContent;
+
+    try{
+        await pg.connect();
+        await pg.queryUpdate(`BEGIN;`);
+        await pg.queryUpdate(
+            `
+            UPDATE knock.expert 
+                SET profile_img_url = $2,
+                education = $3,
+                qualification = $4,
+                career = $5,
+                introduction_title = $6,
+                introduction_content = $7
+            WHERE expert_index = $1;
+            `
+        , [expertId, profileImgUrl, education, qualification, career, introTitle, introContent]);
+        
+        await pg.queryUpdate(
+            `
+            DELETE FROM knock.expert_education_img WHERE expert_index = $1;
+            `
+        , [expertId]);
+
+        await pg.queryUpdate(
+            `
+            INSERT INTO knock.expert_education_img VALUES($1, unnest(ARRAY[${array2String.convertArrayFormat(educationImgUrlList)}]));
+            `
+        , [expertId]);
+
+        await pg.queryUpdate(
+            `
+            DELETE FROM knock.expert_career_img WHERE expert_index = $1;
+            `
+        , [expertId]);
+
+        await pg.queryUpdate(
+            `
+            INSERT INTO knock.expert_career_img VALUES($1, unnest(ARRAY[${array2String.convertArrayFormat(careerImgUrlList)}]));
+            `
+        , [expertId]);
+
+        await pg.queryUpdate(
+            `
+            DELETE FROM knock.expert_counseling_method_1st WHERE expert_index = $1;
+            `
+        , [expertId]);
+
+        await pg.queryUpdate(
+            `
+            INSERT INTO knock.expert_counseling_method_1st 
+            VALUES($1, (SELECT counseling_method_1st_index FROM knock.counseling_method_1st WHERE counseling_method in $2));
+            `
+        , [expertId, method1List]);
+
+        res.status(200).send('test');
+    }
+    catch(err){
+        pg.queryUpdate(`ROLLBACK`);
+    }
+    finally{
+        pg.queryUpdate(`END;`);
+        pg.disconnect();
+    }
 }
