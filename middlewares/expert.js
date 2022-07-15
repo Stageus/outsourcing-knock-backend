@@ -621,6 +621,68 @@ module.exports.getExpertInfo = async(req,res)=>{
     }
 }
 
+// 전문가 회원 정보 수정하기
+module.exports.updateExpertInfo = async(req,res)=>{
+    const pg = new postgres();
+    const expertId = parseInt(req.params.expertId);
+
+    const password = req.body.password;
+    const hashedPassword = await hasing.createHashedPassword(password);
+    const call = req.body.call;
+    const dormancy = req.body.dormancy;
+    let expertStatus = '';
+    if(dormancy){expertStatus = 'dormancy';}
+    const careerImgUrlList = req.body.careerImgUrl;
+
+    try{
+        await parameter.nullCheck(expertId);
+        await pg.connect();
+        await pg.queryUpdate(`BEGIN;`);
+        await pg.queryUpdate(
+            `
+            UPDATE knock.expert 
+            SET password = $1, phone_number = $2, expert_status = $3
+            WHERE expert_index = $4;
+            `
+        , [hashedPassword, call, expertStatus, expertId]);
+
+        await pg.queryUpdate(
+            `
+            DELETE FROM knock.expert_career_img
+            WHERE expert_index = $1;
+            `
+        , [expertId]);
+
+        await pg.queryUpdate(
+            `
+            INSERT INTO knock.expert_career_img
+            VALUES ($1, unnest(ARRAY[${array2String.convertArrayFormat(careerImgUrlList)}]));
+            `
+        , [expertId]);
+
+        return res.status(200).send();
+    }
+    catch(err){
+        console.log(err);
+        await pg.queryUpdate(`ROLLBACK;`);
+        if(err instanceof NullParameterError)
+            return res.status(400).send();
+        if(err instanceof PostgreConnectionError)
+            return res.status(500).send();
+        if(err instanceof SqlSyntaxError)
+            return res.status(409).send();        
+    }
+    finally{
+        await pg.queryUpdate(`END;`);
+        await pg.disconnect();
+    }
+}
+
+// 휴대폰 인증하기
+module.exports.certifyPhone = async(req,res)=>{
+    
+}
+
 // dev_shin---end
 
 // dev_Lee---start

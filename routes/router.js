@@ -42,7 +42,8 @@ router.route('/experts/:expertId/profile')
     .get(expert.getProfile)
     .post(expert.updateProfile);
 router.route('/experts/:expertId/info')
-    .get(expert.getExpertInfo);
+    .get(expert.getExpertInfo)
+    .post(expert.updateExpertInfo);
 //
 
 // dev_Lee
