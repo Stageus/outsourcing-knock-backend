@@ -5,6 +5,7 @@ const {PostgreConnectionError, SqlSyntaxError, NullParameterError, CreatedHashed
 const hasing = require('../utils/password');
 const jwtToken = require('../utils/jwtToken');
 const array2String = require('../utils/array2String');
+const phoneValidation = require('../utils/phoneValidation');
 
 //추천 전문가 리스트 가져오기 (3명)
 module.exports.getRecommendedExpertsList = async(req,res) =>{
@@ -679,8 +680,21 @@ module.exports.updateExpertInfo = async(req,res)=>{
 }
 
 // 휴대폰 인증하기
-module.exports.certifyPhone = async(req,res)=>{
-    
+module.exports.phoneValidation = async(req,res)=>{
+    const expertId = req.params.expertId;
+    const phoneNubmer = req.params.phone;
+
+    try{
+        parameter.nullCheck(phoneNubmer);
+        const resultCode = await phoneValidation.send_message(phoneNubmer, "SMS 인증번호 발송용 테스트 메일입니다.");
+        console.log(resultCode);
+    }
+    catch(err){
+        console.log(err);
+        if(err instanceof NullParameterError)
+            return res.status(400).send();
+    }
+    res.status(200).send();
 }
 
 // dev_shin---end

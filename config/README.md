@@ -1,12 +1,14 @@
 ### Need .env file
 
 ## Need below format
+# postgresql
 POSTGRESQL_USER = ""
 POSTGRESQL_HOST = ""
 POSTGRESQL_DBNAME= ""
 POSTGRESQL_PASSWORD = ""
 POSTGRESQL_PORT = ""
 
+# mongodb
 MONGO_USER = ""
 MONGO_HOST = ""
 MONGO_DBNAME= ""
@@ -20,3 +22,9 @@ SALT = "R9bfa9ZEfJcVu8gwA7SH8peDNbrEYvfos6tZv2MRC/bB0sVZAVTMwKjWf5thjRVp1S5Mk1bA
 MAILER_USER = ""
 MAILER_PASSWORD = ""
 MAILER_EMAIL = ""
+
+# SMS validation
+NCP_SERVICE_ID = ""
+NCP_SECRET_KEY = ""
+NCP_ACCESS_KEY = ""
+SENT_PHONE_NUMBER = ""

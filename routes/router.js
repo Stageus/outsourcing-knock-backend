@@ -44,6 +44,7 @@ router.route('/experts/:expertId/profile')
 router.route('/experts/:expertId/info')
     .get(expert.getExpertInfo)
     .post(expert.updateExpertInfo);
+router.get('/experts/:expertId/phone-validation/:phone', expert.phoneValidation);
 //
 
 // dev_Lee
