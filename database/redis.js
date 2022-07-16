@@ -16,17 +16,17 @@ module.exports = class Redis{
         }
     }
 
-    async getProductNumber(){
+    async getProductSequence(){
         try{
-            let productNumber = await this.client.get('productNumber');
-            if(productNumber === null){
-                await this.client.set('productNumber', 1);
-                productNumber = 1;
+            let productSequence = await this.client.get('productSequence');
+            if(productSequence === null){
+                await this.client.set('productSequence', 1);
+                productSequence = 1;
             }
             else
-                await this.client.set('productNumber', Number(productNumber)+1);
+                await this.client.set('productSequence', Number(productSequence)+1);
             
-            return productNumber;
+            return productSequence;
         }
         catch(err){
             throw new RedisError(err);
@@ -39,6 +39,32 @@ module.exports = class Redis{
         }
         catch(err){
             console.log(err);
+        }
+    }
+
+    async delete(key){
+        try{
+            await this.client.del(key);
+        }
+        catch(err){
+            throw new RedisError(err);
+        }
+    }
+
+    async setPrice(productNumber, price){
+        try{
+            await this.client.set(productNumber,price);
+        }
+        catch(err){
+            throw new RedisError(err);
+        }
+    }
+    async getPrice(productNumber){
+        try{
+            return await this.client.get(productNumber);
+        }
+        catch(err){
+            throw new RedisError(err);
         }
     }
 }

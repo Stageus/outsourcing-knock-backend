@@ -51,7 +51,8 @@ router.get('/experts/types/:firstcategory/:secondcategory/:thirdcategory/:pageco
 router.get('/experts/:expertid', expert.getExpertDetail);
 router.post('/kakao', userAccount.kakaoLogin);
 router.post('/google', userAccount.googleLogin);
-router.get('/payment',toss.cardPayment);
+router.get('/payment',toss.getcardPaymentForm);
+router.get('/success',toss.approvalCardPayment);
 //
 
 module.exports = router;
