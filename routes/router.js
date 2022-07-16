@@ -5,6 +5,7 @@ const terms = require("../middlewares/terms");
 const banner = require('../middlewares/banner')
 const expert = require('../middlewares/expert');
 const jwtToken = require('../middlewares/jwtToken');
+const toss = require('../middlewares/toss');
 
 router.route('/users/:userid/email-authentication')
         .post(jwtToken.verifyToken, userAccount.sendAuthenticationEmail)
@@ -50,6 +51,7 @@ router.get('/experts/types/:firstcategory/:secondcategory/:thirdcategory/:pageco
 router.get('/experts/:expertid', expert.getExpertDetail);
 router.post('/kakao', userAccount.kakaoLogin);
 router.post('/google', userAccount.googleLogin);
+router.get('/payment',toss.cardPayment);
 //
 
 module.exports = router;
