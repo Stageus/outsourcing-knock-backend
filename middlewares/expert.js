@@ -679,7 +679,7 @@ module.exports.updateExpertInfo = async(req,res)=>{
     }
 }
 
-// 휴대폰 인증하기
+// (미완) 휴대폰 인증하기
 module.exports.phoneValidation = async(req,res)=>{
     const expertId = req.params.expertId;
     const phoneNubmer = req.params.phone;
@@ -695,6 +695,164 @@ module.exports.phoneValidation = async(req,res)=>{
             return res.status(400).send();
     }
     res.status(200).send();
+}
+
+// 상담목록 전체개수 
+module.exports.getTotalCounseling = async(req,res)=>{
+    const pg = new postgres();
+
+    try{
+        await pg.connect();
+        const result = await pg.queryExecute(
+            `
+            SELECT COUNT(*) FROM knock.psychology_payment;
+            `
+        , []);
+
+        res.status(200).send(result.rows[0]);
+    }
+    catch(err){
+        if(err instanceof NullParameterError)
+            return res.status(400).send();
+        if(err instanceof PostgreConnectionError)
+            return res.status(500).send();
+        if(err instanceof SqlSyntaxError)
+            return res.status(409).send(); 
+    }
+    finally{
+        await pg.disconnect();
+    }
+}
+
+// 상담 목록 가져오기
+module.exports.getCounselingList = async(req,res)=>{
+    const pg = new postgres();
+    const searchType = req.params.searchType;
+    const description = req.params.description;
+    const progress = req.params.progress;
+    const counselingType = req.params.counselingType;
+    const startDate = req.params.startDate;
+    const endDate = req.params.endDate;
+    const pageCount = req.params.pagecount;
+    const pagePerRow = 5; // 페이지당 row 개수
+
+    // make where clause
+    let whereClause = ``;
+    if(searchType != "empty" && description != "empty"){
+        if(whereClause != ""){ whereClause += "AND "; }
+        if(searchType === "결제상품번호"){
+            whereClause += `PP.payment_info_index = '${description}' `;
+        }
+        else if(searchType === "회원번호"){
+            whereClause += `PP.user_index = '${description}' `;
+        }
+        else if(searchType === "닉네임"){
+            whereClause += `nickname = '${description}' `;
+        }
+    }
+
+    if(progress != "empty"){
+        if(whereClause != ""){ whereClause += "AND "; }
+        whereClause += `(SELECT title FROM knock.progress_message WHERE SP.progress_message_index = progress_message_index) = '${progress}' `;
+    }
+    if(counselingType != "empty"){
+        if(whereClause != ""){ whereClause += "AND "; }
+        whereClause += `counseling_type = '${counselingType}' `;
+    }
+    if(startDate != "empty" && endDate != "empty"){
+        if(whereClause != ""){ whereClause += "AND "; }
+        whereClause += `'${startDate}'::date <= consultation_time::date AND consultation_time::date <= '${endDate}'`;
+    }
+    
+    if(whereClause != "") whereClause = "WHERE " + whereClause;
+    console.log(whereClause);
+
+    try{
+        parameter.nullCheck(); // null check
+        await pg.connect();
+        const result = await pg.queryExecute(
+            `
+            SELECT PP.payment_info_index AS product_index, PP.user_index, nickname AS user_nickname, counseling_type, is_canceled, 
+            (SELECT title FROM knock.progress_message WHERE SP.progress_message_index = progress_message_index) AS progress,
+            consultation_time AS time
+            FROM knock.psychology_payment AS PP
+            JOIN knock.users AS U ON PP.user_index = U.user_index
+            JOIN knock.payment_info AS PI ON PP.payment_info_index = PI.payment_info_index
+            JOIN knock.service_progress AS SP ON PP.payment_info_index = SP.payment_info_index
+            ${whereClause} 
+            OFFSET ${pagePerRow * (pageCount-1)} LIMIT ${pagePerRow * pageCount};
+            `
+        );
+
+        console.log(result.rows);
+        if(result.rowCount === 0){
+            return res.status(400).send('해당하는 상품이 없습니다.');
+        }
+
+        return res.status(200).send({
+            counseling : result.rows
+        });
+    }
+    catch(err){
+        console.log(err);
+        if(err instanceof NullParameterError)
+            return res.status(400).send();
+        if(err instanceof PostgreConnectionError)
+            return res.status(500).send();
+        if(err instanceof SqlSyntaxError)
+            return res.status(409).send(); 
+    }
+    finally{
+        await pg.disconnect();
+    }
+}
+
+// 상담 목록 상세보기
+module.exports.getCounseling = async(req,res)=>{
+    const pg = new postgres();
+    const expertId = req.params.expertId;
+    const productId = req.params.productId;
+
+    try{
+        parameter.nullCheck(expertId, productId);
+        await pg.connect();
+
+        const result = await pg.queryExecute(
+            `
+            SELECT PP.payment_info_index AS product_index, PP.user_index, nickname AS user_nickname, counseling_type, is_canceled, consultation_time AS time, 
+            (SELECT EXISTS(SELECT * FROM knock.pre_question_answer WHERE psychology_payment_index = PP.psychology_payment_index)) AS apply_prequestion,
+            (SELECT title FROM knock.progress_message WHERE SP.progress_message_index = progress_message_index) AS progress,
+            (SELECT EXISTS(SELECT * FROM knock.expert_review WHERE payment_info_index = PP.payment_info_index)) AS apply_review
+            FROM knock.psychology_payment AS PP
+            JOIN knock.users AS U ON PP.user_index = U.user_index
+            JOIN knock.payment_info AS PI ON PP.payment_info_index = PI.payment_info_index
+            JOIN knock.service_progress AS SP ON PP.payment_info_index = SP.payment_info_index
+            WHERE PP.expert_index = $1 AND PP.payment_info_index = $2;
+            `
+        , [expertId, productId]);
+
+        if(result.rowCount === 0){
+            return res.status(400).send("해당하는 상품이 없습니다.");
+        }
+
+        return res.status(200).send(result.rows[0]);
+    }
+    catch(err){
+        if(err instanceof NullParameterError)
+            return res.status(400).send();
+        if(err instanceof PostgreConnectionError)
+            return res.status(500).send();
+        if(err instanceof SqlSyntaxError)
+            return res.status(409).send(); 
+    }
+    finally{
+        await pg.disconnect();
+    }
+}
+
+// 상담 목록 - 상세 수정 사항 저장
+module.exports.updateCounseling = async(req,res)={
+    
 }
 
 // dev_shin---end

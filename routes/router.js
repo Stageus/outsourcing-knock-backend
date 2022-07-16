@@ -45,6 +45,11 @@ router.route('/experts/:expertId/info')
     .get(expert.getExpertInfo)
     .post(expert.updateExpertInfo);
 router.get('/experts/:expertId/phone-validation/:phone', expert.phoneValidation);
+router.get('/experts/counseling/count', expert.getTotalCounseling);
+router.get('/experts/counseling/:searchType/:description/:progress/:counselingType/:startDate/:endDate/:pagecount', expert.getCounselingList);
+router.route('/experts/:expertId/counseling/:productId')
+    .get(expert.getCounseling)
+    .post(expert.updateCounseling);
 //
 
 // dev_Lee
