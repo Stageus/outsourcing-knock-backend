@@ -727,6 +727,7 @@ module.exports.getTotalCounseling = async(req,res)=>{
 // 상담 목록 가져오기
 module.exports.getCounselingList = async(req,res)=>{
     const pg = new postgres();
+    const expertId = req.params.expertId;
     const searchType = req.params.searchType;
     const description = req.params.description;
     const progress = req.params.progress;
@@ -741,10 +742,10 @@ module.exports.getCounselingList = async(req,res)=>{
     if(searchType != "empty" && description != "empty"){
         if(whereClause != ""){ whereClause += "AND "; }
         if(searchType === "결제상품번호"){
-            whereClause += `PP.payment_info_index = '${description}' `;
+            whereClause += `PP.payment_info_index = ${description} `;
         }
         else if(searchType === "회원번호"){
-            whereClause += `PP.user_index = '${description}' `;
+            whereClause += `PP.user_index = ${description} `;
         }
         else if(searchType === "닉네임"){
             whereClause += `nickname = '${description}' `;
@@ -764,7 +765,7 @@ module.exports.getCounselingList = async(req,res)=>{
         whereClause += `'${startDate}'::date <= consultation_time::date AND consultation_time::date <= '${endDate}'`;
     }
     
-    if(whereClause != "") whereClause = "WHERE " + whereClause;
+    if(whereClause != "") whereClause = `WHERE PP.expert_index = ${expertId} AND ` + whereClause;
     console.log(whereClause);
 
     try{
@@ -851,8 +852,167 @@ module.exports.getCounseling = async(req,res)=>{
 }
 
 // 상담 목록 - 상세 수정 사항 저장
-module.exports.updateCounseling = async(req,res)={
+module.exports.updateCounseling = async(req,res)=>{
+    const pg = new postgres();
+    const expertId = req.params.expertId;
+    const productId = req.params.productId;
+    const counselingTime = req.body.time;
+    const progress = req.body.progress;
+
+    try{
+        await pg.connect();
+        await pg.queryUpdate(`BEGIN;`);
+
+        await pg.queryUpdate(
+            `
+            UPDATE knock.psychology_payment SET consultation_time = $1
+            WHERE payment_info_index = $2 AND expert_index = $3;
+            `
+        , [counselingTime, productId, expertId]);
+
+        await pg.queryUpdate(
+            `
+            UPDATE knock.service_progress SET progress_message_index = (SELECT progress_message_index FROM knock.progress_message WHERE title = $1)
+            WHERE payment_info_index = $2;
+            `
+        , [progress, productId]);
+
+        return res.status(200).send();
+    }
+    catch(err){
+        await pg.queryUpdate(`ROLLBACK;`);
+        if(err instanceof NullParameterError)
+            return res.status(400).send();
+        if(err instanceof PostgreConnectionError)
+            return res.status(500).send();
+        if(err instanceof SqlSyntaxError)
+            return res.status(409).send();
+    }
+    finally{
+        await pg.queryUpdate(`END;`);
+        await pg.disconnect();
+    }
+}
+
+// 상담 목록 - 사전질문 보기
+module.exports.getPrequestion = async(req,res)=>{
+    const pg = new postgres();
+    const expertId = req.params.expertId;
+    const productId = req.params.productId;
+
+    try{
+        await pg.connect();
+
+        const result = await pg.queryExecute(
+            `
+            SELECT ARRAY_AGG(answer) AS answer FROM knock.pre_question_answer
+            WHERE payment_info_index = $1;
+            `
+        , [productId]);
+
+        if(result.rowCount == 0){
+            return res.status(400).send('해당하는 결과가 없습니다.');
+        }
+
+        return res.status(200).send(result.rows[0]);
+    }
+    catch(err){
+        console.log(err);
+        if(err instanceof NullParameterError)
+            return res.status(400).send();
+        if(err instanceof PostgreConnectionError)
+            return res.status(500).send();
+        if(err instanceof SqlSyntaxError)
+            return res.status(409).send(); 
+    }
+    finally{
+        await pg.disconnect();
+    }
+}
+
+// 상담 목록 - 후기 보기
+module.exports.getReview = async(req,res)=>{
+    const pg = new postgres();
+    const expertId = req.params.expertId;
+    const productId = req.params.productId;
+
+    try{
+        await pg.connect();
+
+        const result = await pg.queryExecute(
+            `
+            SELECT reviews, writed_at FROM knock.expert_review 
+            WHERE expert_index = $1 AND payment_info_index = $2;
+            `
+        , [expertId, productId]);
+
+        if(result.rowCount == 0){
+            return res.status(400).send('해당하는 결과가 없습니다.');
+        }
+        return res.status(200).send(result.rows[0]);
+    }
+    catch(err){
+        if(err instanceof NullParameterError)
+            return res.status(400).send();
+        if(err instanceof PostgreConnectionError)
+            return res.status(500).send();
+        if(err instanceof SqlSyntaxError)
+            return res.status(409).send();
+    }
+    finally{
+        await pg.disconnect();
+    }
+}
+
+// 상담 목록 - 채팅방 입장
+module.exports.joinChatRoom = async(req,res)=>{
+    const pg = new postgres();
     
+    const expertId = req.params.expertId;
+    const productId = req.params.productId;
+
+    try{
+        await pg.connect();
+
+        await pg.queryUpdate(`BEGIN;`);
+        const result = await pg.queryExecute(
+            `
+            INSERT INTO knock.room (user_index, expert_index, created_at) 
+            VALUES((SELECT user_index FROM knock.psychology_payment WHERE payment_info_index = $1), $2, NOW())
+            RETURNING room_index;
+            `
+        , [productId, expertId]);
+
+        const roomIndex = result.rows[0].room_index;
+
+        await pg.queryUpdate(
+            `
+            INSERT INTO knock.room_payment_history VALUES($1, $2);
+            `
+        , [productId, roomIndex]);
+
+        await pg.queryUpdate(
+            `
+            INSERT INTO knock.participant (room_index, user_index, expert_index, not_read_chat, last_read_chat_id) 
+            VALUES($1, (SELECT user_index FROM knock.psychology_payment WHERE payment_info_index = $2), null, 0, 0), ($1, null, $3, 0, 0);
+            `
+        , [roomIndex, productId, expertId]);
+
+        return res.status(200).send();
+    }
+    catch(err){
+        await pg.queryUpdate(`ROLLBACK;`);
+        if(err instanceof NullParameterError)
+            return res.status(400).send();
+        if(err instanceof PostgreConnectionError)
+            return res.status(500).send();
+        if(err instanceof SqlSyntaxError)
+            return res.status(409).send();
+    }
+    finally{
+        await pg.queryUpdate(`END;`);
+        await pg.disconnect();
+    }
 }
 
 // dev_shin---end

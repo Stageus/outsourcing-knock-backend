@@ -46,10 +46,13 @@ router.route('/experts/:expertId/info')
     .post(expert.updateExpertInfo);
 router.get('/experts/:expertId/phone-validation/:phone', expert.phoneValidation);
 router.get('/experts/counseling/count', expert.getTotalCounseling);
-router.get('/experts/counseling/:searchType/:description/:progress/:counselingType/:startDate/:endDate/:pagecount', expert.getCounselingList);
+router.get('/experts/:expertId/counseling/:searchType/:description/:progress/:counselingType/:startDate/:endDate/:pagecount', expert.getCounselingList);
 router.route('/experts/:expertId/counseling/:productId')
     .get(expert.getCounseling)
     .post(expert.updateCounseling);
+router.get('/experts/:expertId/counseling/:productId/prequestion', expert.getPrequestion);
+router.get('/experts/:expertId/counseling/:productId/review', expert.getReview);
+router.post('/experts/:expertId/counseling/:productId/join-room', expert.joinChatRoom);
 //
 
 // dev_Lee
