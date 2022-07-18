@@ -11,7 +11,7 @@ const config = {
     password : process.env.POSTGRESQL_PASSWORD,
     port : process.env.POSTGRESQL_PORT,
     connectionTimeoutMillis: 10000,
-    max : 3,
+    max : 10,
 };
 
 

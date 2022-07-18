@@ -25,7 +25,6 @@ module.exports = class Redis{
             }
             else
                 await this.client.set('productSequence', Number(productSequence)+1);
-            
             return productSequence;
         }
         catch(err){
@@ -35,7 +34,7 @@ module.exports = class Redis{
 
     async disconnect(){
         try{
-            await this.client.disconnect();
+            await this.client.quit();
         }
         catch(err){
             console.log(err);
