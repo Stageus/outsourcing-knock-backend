@@ -20,7 +20,6 @@ module.exports.getRecommendedExpertsList = async(req,res) =>{
             FROM knock.expert ORDER BY RANDOM() LIMIT 3;
             `
         ,[])
-
         return res.status(200).send({
             bannerList : result.rows
         })

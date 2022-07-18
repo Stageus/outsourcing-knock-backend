@@ -51,7 +51,7 @@ router.get('/experts/types/:firstcategory/:secondcategory/:thirdcategory/:pageco
 router.get('/experts/:expertid', expert.getExpertDetail);
 router.post('/kakao', userAccount.kakaoLogin);
 router.post('/google', userAccount.googleLogin);
-router.get('/payment-form',toss.getPaymentForm);
+router.post('/payment-form',toss.getPaymentForm);
 router.get('/payment-success',toss.approvalCardPayment);
 router.post('/webhook',toss.getWebhook);
 //

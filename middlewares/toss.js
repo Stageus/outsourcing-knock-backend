@@ -7,13 +7,14 @@ const axios = require('axios');
 
 // 카드결제 불러오기
 module.exports.getPaymentForm = async(req,res) =>{
-    const originalAmount = req.body.originalAmount || 200000;
-    const paymentAmount = req.body.paymentAmount || 200000;
-    const productName = req.body.productName || "채팅";
-    const userId = req.params.userId || '2';
-    const method = req.body.method || '카드';
-    const couponid = req.body.couponId || 2;
-    const expertId= req.body.expertId || 8;
+    console.log(req.body);
+    const originalAmount = req.body.originalAmount;
+    const paymentAmount = req.body.paymentAmount;
+    const productName = req.body.productName;
+    const userId = req.body.userId;
+    const method = req.body.method;
+    const couponid = req.body.couponId;
+    const expertId= req.body.expertId;
     const date = dateUtil.getDate();
     const redis = new Redis();
     if(productName ==="채팅")
@@ -37,13 +38,12 @@ module.exports.getPaymentForm = async(req,res) =>{
     */
     try{
         await parameter.nullCheck(originalAmount, paymentAmount, productName, userId, method, date);
-
         if(originalAmount != paymentAmount) // 할인이 됐다면
             await parameter.nullCheck(couponid);  // 쿠폰이 사용됐는지 체크
-
+        
         if(productName != "검사")    // 결제한 상품이 상담이라면
             await parameter.nullCheck(expertId) // 전문가 id가 넘어왔는지 체크
-
+    
         await redis.connect();    
         const productSequence = await redis.getProductSequence();
         await redis.setPrice((productTag+date+productSequence.toString().padStart(5,'0')), paymentAmount);
@@ -130,10 +130,10 @@ module.exports.approvalCardPayment = async(req,res)=>{
             await pg.queryExecute('BEGIN;',[]);
                 await pg.queryUpdate(
                     `
-                    INSERT INTO knock.payment_info (payment_key, order_id, status, price, payment_method, payment_date, counseling_type)
-                    VALUES($1, $2, $3, $4, $5, $6, $7);
+                    INSERT INTO knock.payment_info (payment_key, user_index, order_id, status, price, payment_method, payment_date, counseling_type)
+                    VALUES($1, $2, $3, $4, $5, $6, $7, $8);
                     `
-                ,[result.data.paymentKey, result.data.orderId, result.data.status, result.data.totalAmount, result.data.method, result.data.approvedAt, counseling_type]);
+                ,[result.data.paymentKey, userId, result.data.orderId, result.data.status, result.data.totalAmount, result.data.method, result.data.approvedAt, counseling_type]);
                 
                 // 심리검사에 대한 결제라면
                 if(counseling_type === "NULL"){

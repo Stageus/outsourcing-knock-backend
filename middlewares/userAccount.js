@@ -508,3 +508,39 @@ module.exports.getFavoriteExpert = async(req,res) =>{
         pg.disconnect();
     }
 }
+
+module.exports.getAvailableCoupon = async(req,res) =>{
+    const pg = new postgres();
+    const userId = req.params.userid;
+    const productName = req.params.productName;
+    try{
+        await parameter.nullCheck(userId, productName);
+        await pg.connect();
+        const result = await pg.queryExecute(
+            `
+            SELECT coupon_index AS coupon_id, name, description, available_period FROM knock.have_coupon 
+            INNER JOIN knock.coupon 
+            ON have_coupon.user_index = $1 
+            AND (coupon.type = $2 OR coupon.type = 'all');
+            AND have_coupon.payment_key IS NULL
+            AND available_period < NOW()
+            AND have_coupon.coupon_index = coupon.coupon_index
+            `
+            ,[userId, productName]);
+        
+        return res.status(200).send(result.rows)
+    }
+    catch(err){
+        if(err instanceof NullParameterError)
+            return res.status(400).send();
+
+        if(err instanceof PostgreConnectionError)
+            return res.status(500).send();
+
+        if(err instanceof SqlSyntaxError)
+            return res.status(500).send();
+    }
+    finally{
+        await pg.disconnect();
+    }
+}
