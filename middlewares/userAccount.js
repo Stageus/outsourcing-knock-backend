@@ -27,9 +27,9 @@ module.exports.login = async(req, res)=>{
             return res.status(403).send();
         
         const token = await jwtToken.issueToken(result.rows[0].user_id); // 인증된 사용자라면 유저 index값을 넣어 토큰을 만들어준다.
-        
+
         return res.status(200).send({
-            userId : result.rows[0].user_index,
+            user_id : result.rows[0].user_id,
             token : token
         })
 
@@ -544,3 +544,18 @@ module.exports.getAvailableCoupon = async(req,res) =>{
         await pg.disconnect();
     }
 }
+
+
+/*
+SELECT payment_info.payment_key, expert.expert_index, product_name, status AS payment_status, counseling_status, payment_date, 
+(SELECT expert_type AS type 
+FROM knock.have_expert_type 
+INNER JOIN knock.expert_type 
+ON have_expert_type.expert_index = psychology_payment.expert_index 
+AND have_expert_type.expert_type_index = expert_type.expert_type_index) 
+FROM knock.psychology_payment
+INNER JOIN knock.payment_info
+ON psychology_payment.user_index = 2 AND  payment_info.payment_key = psychology_payment.payment_key 
+INNER JOIN knock.expert
+ON expert.expert_index = psychology_payment.expert_index;
+*/

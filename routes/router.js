@@ -54,6 +54,8 @@ router.post('/google', userAccount.googleLogin);
 router.post('/payment-form',toss.getPaymentForm);
 router.get('/payment-success',toss.approvalCardPayment);
 router.post('/webhook',toss.getWebhook);
+router.get('/images/banners/:fileName', banner.getBannerimage);
+router.get('/images/expert/profile/:fileName', expert.getProfileImage);
 //
 
 module.exports = router;

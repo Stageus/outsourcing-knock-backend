@@ -7,24 +7,22 @@ const axios = require('axios');
 
 // 카드결제 불러오기
 module.exports.getPaymentForm = async(req,res) =>{
-    console.log(req.body);
-    const originalAmount = req.body.originalAmount;
-    const paymentAmount = req.body.paymentAmount;
-    const productName = req.body.productName;
-    const userId = req.body.userId;
-    const method = req.body.method;
+    const originalAmount = req.body.originalAmount||1;
+    const paymentAmount = req.body.paymentAmount||1;
+    const productName = req.body.productName ||"음성상담 1회권";
+    const productType = req.body.productType ||"검사";
+    const userId = req.body.userId || 2;
+    const method = req.body.method || "가상계좌";
     const couponid = req.body.couponId;
-    const expertId= req.body.expertId;
+    const expertId= req.body.expertId || 2;
     const date = dateUtil.getDate();
     const redis = new Redis();
-    if(productName ==="채팅")
+    if(productType ==="채팅")
         productTag = "C"
-    else if(productName === "음성")
+    else if(productType === "음성")
         productTag = "V"
-    else if(productName === "검사")
+    else if(productType === "검사")
         productTag = "T"
-
-    productTag="t";
 
     /* 상담일 경우 전문가 인덱스값이 필요하다. 심리검사의 경우에는 필요없음 */
     /* originalAmount와 paymentAmount가 다를 경우(즉 할인 받은 경우)에는 쿠폰이 null인지도 체크해야함 */
@@ -32,12 +30,13 @@ module.exports.getPaymentForm = async(req,res) =>{
     originalAmount
     paymentAmount
     productName
+    productType
     userId
     method
     date
     */
     try{
-        await parameter.nullCheck(originalAmount, paymentAmount, productName, userId, method, date);
+        await parameter.nullCheck(originalAmount, paymentAmount, productName, productType, userId, method, date);
         if(originalAmount != paymentAmount) // 할인이 됐다면
             await parameter.nullCheck(couponid);  // 쿠폰이 사용됐는지 체크
         
@@ -66,8 +65,8 @@ module.exports.getPaymentForm = async(req,res) =>{
                 amount: ${paymentAmount},
                 orderId: '${productTag}${date}${productSequence.toString().padStart(5,'0')}',
                 orderName: '${productName}',
-                customerName: '${userId}',
-                successUrl: 'http://54.180.79.110:4000/payment-success?couponid=${couponid}&userid=${userId}&expertid=${expertId}&productName=${productName}',
+                customerName: '${''}',
+                successUrl: 'http://54.180.79.110:4000/payment-success?couponid=${couponid}&userid=${userId}&expertid=${expertId}&productName=${productName}&productType=${productType}',
                 failUrl: 'http://54.180.79.110:4000/fail',
             })
             </script>
@@ -98,10 +97,12 @@ module.exports.approvalCardPayment = async(req,res)=>{
     const couponId = req.query.counponid;
     const userId = req.query.userid;
     const expertId = req.query.expertid;
+    const productName = req.query.productName
+    let counseling_type = req.query.productType;
+
+    if(counseling_type =="검사")
+        counseling_type ="미정";
     let result = null;
-    let counseling_type = req.query.productName;
-    if(counseling_type === "검사")
-        counseling_type = "NULL";
 
     
     const redis = new Redis();
@@ -128,15 +129,17 @@ module.exports.approvalCardPayment = async(req,res)=>{
 
         if(result.status == 200){
             await pg.queryExecute('BEGIN;',[]);
-                await pg.queryUpdate(
-                    `
-                    INSERT INTO knock.payment_info (payment_key, user_index, order_id, status, price, payment_method, payment_date, counseling_type)
-                    VALUES($1, $2, $3, $4, $5, $6, $7, $8);
-                    `
-                ,[result.data.paymentKey, userId, result.data.orderId, result.data.status, result.data.totalAmount, result.data.method, result.data.approvedAt, counseling_type]);
                 
                 // 심리검사에 대한 결제라면
-                if(counseling_type === "NULL"){
+                if(counseling_type === "검사"){
+                    
+                    await pg.queryUpdate(
+                        `
+                        INSERT INTO knock.payment_info (payment_key, user_index, order_id, status, price, payment_method, payment_date, counseling_type, product_name, counseling_status)
+                        VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10);
+                        `
+                    ,[result.data.paymentKey, userId, result.data.orderId, result.data.status, result.data.totalAmount, result.data.method, result.data.approvedAt, counseling_type, productName, '검사대기']);
+
                     await pg.queryUpdate(
                         `
                         INSERT INTO knock.test_payment (payment_key, user_index, expiration_date)
@@ -145,6 +148,14 @@ module.exports.approvalCardPayment = async(req,res)=>{
                     ,[result.data.paymentKey, userId]);
                 }
                 else{
+
+                    await pg.queryUpdate(
+                        `
+                        INSERT INTO knock.payment_info (payment_key, user_index, order_id, status, price, payment_method, payment_date, counseling_type, product_name, counseling_status)
+                        VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10);
+                        `
+                    ,[result.data.paymentKey, userId, result.data.orderId, result.data.status, result.data.totalAmount, result.data.method, result.data.approvedAt, counseling_type, productName, '일정조율']);
+
                     await pg.queryUpdate(
                         `
                         INSERT INTO knock.psychology_payment (payment_key, user_index, expert_index)

@@ -5,6 +5,8 @@ const {PostgreConnectionError, SqlSyntaxError, NullParameterError, CreatedHashed
 const hasing = require('../utils/password');
 const jwtToken = require('../utils/jwtToken');
 const array2String = require('../utils/array2String');
+const fs = require('fs');
+const path = require('path');
 
 //추천 전문가 리스트 가져오기 (3명)
 module.exports.getRecommendedExpertsList = async(req,res) =>{
@@ -21,7 +23,7 @@ module.exports.getRecommendedExpertsList = async(req,res) =>{
             `
         ,[])
         return res.status(200).send({
-            bannerList : result.rows
+            expertList : result.rows
         })
     }
     catch(err){
@@ -548,7 +550,7 @@ module.exports.getExpertsList = async(req,res) =>{
         ,[firstCategory, secondCategory, thirdCategory, pageCount])
 
         return res.status(200).send({
-            bannerList : result.rows
+            expertList : result.rows
         })
     }
     catch(err){
@@ -672,6 +674,21 @@ module.exports.getReviewList = async(req,res) =>{
         pg.disconnect();
     }
 
+}
+
+module.exports.getProfileImage = async(req,res) =>{
+    const fileName = req.params.fileName;
+
+    try{
+        const image = await fs.promises.readFile(path.join(__dirname, `../images/expert/profile/${fileName}`))
+        res.writeHead(200, {'Content-type' : 'image/jpeg'});
+        res.write(image);
+        res.end();
+    }
+    catch(err){
+        console.log(err);
+        return res.status(500).send();
+    }
 }
 
 
