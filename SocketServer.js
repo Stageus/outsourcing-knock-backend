@@ -78,19 +78,41 @@ const disconnect = (socket) => {
 }
 
 const getRoomList = (socket) => {
-    socket.on('roomList', async(user_id)=>{
+    socket.on('roomList-user', async(user_id)=>{
         // 유저가 속한 room 리스트 반환
         const pg = new postgres();
         try{
             await pg.connect();
             
-            const result = await pg.queryExecute(
+            const result = await pg.queryExecute( // room list에 expert 프로필 정보 포함해서 보내기
                 `
-                SELECT * FROM knock.room where user_index = $1 OR expert_index = $1;
+                SELECT * FROM knock.room where user_index = $1;
                 `
             , [user_id]);
 
-            socket.emit('roomList', result.rows);
+            socket.emit('roomList-user', result.rows);
+        }
+        catch(err){
+            console.log(err);
+        }
+        finally{
+            await pg.disconnect();
+        }
+    })
+
+    socket.on('roomList-expert', async(expert_id)=>{
+        // 전문가가 속한 room 리스트 반환
+        const pg = new postgres();
+        try{
+            await pg.connect();
+            
+            const result = await pg.queryExecute( 
+                `
+                SELECT * FROM knock.room where expert_index = $1;
+                `
+            , [user_id]);
+
+            socket.emit('roomList-expert', result.rows);
         }
         catch(err){
             console.log(err);
@@ -102,7 +124,7 @@ const getRoomList = (socket) => {
 }
 
 const joinRoom = (socket) => {
-    socket.on('join', async (joinObj) => {
+    socket.on('join-user', async (joinObj) => {
         const {room_id, user_id} = joinObj;
         socket.join(room_id);
 
@@ -112,7 +134,7 @@ const joinRoom = (socket) => {
 
             const result = await pg.queryExecute(
                 `
-                SELECT participant_index, last_read_chat_id FROM knock.participant WHERE room_index = $1 AND user_index = $2 OR expert_index = $2;
+                SELECT participant_index, last_read_chat_id FROM knock.participant WHERE room_index = $1 AND user_index = $2;
                 `
             , [room_id, user_id]);
 
@@ -122,7 +144,44 @@ const joinRoom = (socket) => {
                     participant_id : result.rows[0].participant_index,
                     last_read_chat_id : result.rows[0].last_read_chat_id,
                 };
-                socket.emit('join', responseObj);
+                socket.emit('join-user', responseObj);
+            }
+            else{
+                console.log("err : rowCount is 0");
+            }
+        }
+        catch(err){
+            console.log(err);
+        }
+        finally{
+            await pg.disconnect();
+        }
+        
+        // 채팅 불러오기
+        // join하면 room_id와 room에서 자신의 participant_index를 가져옴
+    })
+
+    socket.on('join-expert', async (joinObj) => {
+        const {room_id, user_id} = joinObj;
+        socket.join(room_id);
+
+        const pg = new postgres();
+        try{
+            await pg.connect();
+
+            const result = await pg.queryExecute(
+                `
+                SELECT participant_index, last_read_chat_id FROM knock.participant WHERE room_index = $1 AND expert_index = $2;
+                `
+            , [room_id, user_id]);
+
+            // TODO : rows의 개수 예외처리
+            if(result.rowCount != 0){   
+                const responseObj = {
+                    participant_id : result.rows[0].participant_index,
+                    last_read_chat_id : result.rows[0].last_read_chat_id,
+                };
+                socket.emit('join-expert', responseObj);
             }
             else{
                 console.log("err : rowCount is 0");
@@ -142,8 +201,8 @@ const joinRoom = (socket) => {
 
 const getChatting = (socket)=>{
     socket.on('getChatting', async (getChattingObj)=>{
-        const {room_id, user_id, participant_id, last_read_chat_id} = getChattingObj;
-
+        const {room_id, user_id, participant_id, last_read_chat_id, page_count} = getChattingObj;
+        const pagePerRow = 5; // 페이지당 댓글 개수
         const pg = new postgres();
         try{
             await pg.connect();
@@ -153,7 +212,8 @@ const getChatting = (socket)=>{
                 `
                 SELECT * FROM knock.chatting 
                 WHERE room_index = $1
-                ORDER BY chatting_index ASC;
+                ORDER BY chatting_index ASC
+                OFFSET ${pagePerRow * (page_count - 1)} LIMIT ${pagePerRow * page_count};
                 `
             , [room_id]);
 
