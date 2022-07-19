@@ -742,7 +742,7 @@ module.exports.getCounselingList = async(req,res)=>{
     if(searchType != "empty" && description != "empty"){
         if(whereClause != ""){ whereClause += "AND "; }
         if(searchType === "결제상품번호"){
-            whereClause += `PP.payment_info_index = ${description} `;
+            whereClause += `PP.payment_key = ${description} `;
         }
         else if(searchType === "회원번호"){
             whereClause += `PP.user_index = ${description} `;
@@ -754,7 +754,7 @@ module.exports.getCounselingList = async(req,res)=>{
 
     if(progress != "empty"){
         if(whereClause != ""){ whereClause += "AND "; }
-        whereClause += `(SELECT title FROM knock.progress_message WHERE SP.progress_message_index = progress_message_index) = '${progress}' `;
+        whereClause += `counseling_status = '${progress}' `;
     }
     if(counselingType != "empty"){
         if(whereClause != ""){ whereClause += "AND "; }
@@ -773,13 +773,10 @@ module.exports.getCounselingList = async(req,res)=>{
         await pg.connect();
         const result = await pg.queryExecute(
             `
-            SELECT PP.payment_info_index AS product_index, PP.user_index, nickname AS user_nickname, counseling_type, is_canceled, 
-            (SELECT title FROM knock.progress_message WHERE SP.progress_message_index = progress_message_index) AS progress,
-            consultation_time AS time
+            SELECT PP.payment_key AS product_key, PP.user_index, nickname AS user_nickname, counseling_type, (status = 'CANCEL') AS is_canceled, counseling_status, consultation_time AS time
             FROM knock.psychology_payment AS PP
             JOIN knock.users AS U ON PP.user_index = U.user_index
-            JOIN knock.payment_info AS PI ON PP.payment_info_index = PI.payment_info_index
-            JOIN knock.service_progress AS SP ON PP.payment_info_index = SP.payment_info_index
+            JOIN knock.payment_info AS PI ON PP.payment_key = PI.payment_key
             ${whereClause} 
             OFFSET ${pagePerRow * (pageCount-1)} LIMIT ${pagePerRow * pageCount};
             `
@@ -820,15 +817,14 @@ module.exports.getCounseling = async(req,res)=>{
 
         const result = await pg.queryExecute(
             `
-            SELECT PP.payment_info_index AS product_index, PP.user_index, nickname AS user_nickname, counseling_type, is_canceled, consultation_time AS time, 
-            (SELECT EXISTS(SELECT * FROM knock.pre_question_answer WHERE psychology_payment_index = PP.psychology_payment_index)) AS apply_prequestion,
-            (SELECT title FROM knock.progress_message WHERE SP.progress_message_index = progress_message_index) AS progress,
-            (SELECT EXISTS(SELECT * FROM knock.expert_review WHERE payment_info_index = PP.payment_info_index)) AS apply_review
+            SELECT PP.payment_key AS product_key, PP.user_index, nickname AS user_nickname, counseling_type, (status = 'CANCEL') AS is_canceled, consultation_time AS time,
+            (SELECT EXISTS(SELECT * FROM knock.pre_question_answer WHERE payment_key = PP.payment_key)) AS apply_prequestion,
+            counseling_status,
+	        (SELECT EXISTS(SELECT * FROM knock.expert_review WHERE payment_key = PP.payment_key)) AS apply_review
             FROM knock.psychology_payment AS PP
             JOIN knock.users AS U ON PP.user_index = U.user_index
-            JOIN knock.payment_info AS PI ON PP.payment_info_index = PI.payment_info_index
-            JOIN knock.service_progress AS SP ON PP.payment_info_index = SP.payment_info_index
-            WHERE PP.expert_index = $1 AND PP.payment_info_index = $2;
+            JOIN knock.payment_info AS PI ON PP.payment_key = PI.payment_key
+            WHERE PP.expert_index = $1 AND PP.payment_key = $2;
             `
         , [expertId, productId]);
 
@@ -866,14 +862,14 @@ module.exports.updateCounseling = async(req,res)=>{
         await pg.queryUpdate(
             `
             UPDATE knock.psychology_payment SET consultation_time = $1
-            WHERE payment_info_index = $2 AND expert_index = $3;
+            WHERE payment_key = $2 AND expert_index = $3;
             `
         , [counselingTime, productId, expertId]);
 
         await pg.queryUpdate(
             `
-            UPDATE knock.service_progress SET progress_message_index = (SELECT progress_message_index FROM knock.progress_message WHERE title = $1)
-            WHERE payment_info_index = $2;
+            UPDATE knock.payment_info SET counseling_status = $1
+            WHERE payment_key = $2;
             `
         , [progress, productId]);
 
@@ -906,7 +902,7 @@ module.exports.getPrequestion = async(req,res)=>{
         const result = await pg.queryExecute(
             `
             SELECT ARRAY_AGG(answer) AS answer FROM knock.pre_question_answer
-            WHERE payment_info_index = $1;
+            WHERE payment_key = $1;
             `
         , [productId]);
 
@@ -942,7 +938,7 @@ module.exports.getReview = async(req,res)=>{
         const result = await pg.queryExecute(
             `
             SELECT reviews, writed_at FROM knock.expert_review 
-            WHERE expert_index = $1 AND payment_info_index = $2;
+            WHERE expert_index = $1 AND payment_key = $2;
             `
         , [expertId, productId]);
 
@@ -978,7 +974,7 @@ module.exports.joinChatRoom = async(req,res)=>{
         const result = await pg.queryExecute(
             `
             INSERT INTO knock.room (user_index, expert_index, created_at) 
-            VALUES((SELECT user_index FROM knock.psychology_payment WHERE payment_info_index = $1), $2, NOW())
+            VALUES((SELECT user_index FROM knock.psychology_payment WHERE payment_key = $1), $2, NOW())
             RETURNING room_index;
             `
         , [productId, expertId]);
@@ -994,7 +990,7 @@ module.exports.joinChatRoom = async(req,res)=>{
         await pg.queryUpdate(
             `
             INSERT INTO knock.participant (room_index, user_index, expert_index, not_read_chat, last_read_chat_id) 
-            VALUES($1, (SELECT user_index FROM knock.psychology_payment WHERE payment_info_index = $2), null, 0, 0), ($1, null, $3, 0, 0);
+            VALUES($1, (SELECT user_index FROM knock.psychology_payment WHERE payment_key = $2), null, 0, 0), ($1, null, $3, 0, 0);
             `
         , [roomIndex, productId, expertId]);
 
@@ -1038,8 +1034,8 @@ module.exports.setCounselingDate = async(req,res)=>{
 
         await pg.queryUpdate(
             `
-            INSERT INTO knock.alarm (user_index, is_checked, title, content, created_at) 
-            VALUES((SELECT user_index FROM knock.psychology_payment WHERE payment_key = $1), false, $2, $3, NOW());
+            INSERT INTO knock.alarm (user_index, payment_key, is_checked, title, content, created_at) 
+            VALUES((SELECT user_index FROM knock.psychology_payment WHERE payment_key = $1), $1, false, $2, $3, NOW());
             `
         , [productId, alarm_title, alarm_content]);
 
@@ -1074,15 +1070,15 @@ module.exports.beginCounseling = async(req,res)=>{
 
         await pg.queryUpdate(
             `
-            UPDATE knock.service_progress SET progress_message_index = (SELECT progress_message_index FROM knock.progress_message WHERE title = '상담중')
+            UPDATE knock.payment_info SET counseling_status = '상담중'
             WHERE payment_key = $1;
             `
         , [productId]);
 
         await pg.queryUpdate(
             `
-            INSERT INTO knock.alarm (user_index, is_checked, title, content, created_at) 
-            VALUES((SELECT user_index FROM knock.psychology_payment WHERE payment_key = $1), false, $2, $3, NOW());
+            INSERT INTO knock.alarm (user_index, payment_key, is_checked, title, content, created_at) 
+            VALUES((SELECT user_index FROM knock.psychology_payment WHERE payment_key = $1), $1, false, $2, $3, NOW());
             `
         , [productId, alarm_title, alarm_content]);
 
@@ -1117,15 +1113,15 @@ module.exports.endCounseling = async(req,res)=>{
 
         await pg.queryUpdate(
             `
-            UPDATE knock.service_progress SET progress_message_index = (SELECT progress_message_index FROM knock.progress_message WHERE title = '상담종료')
+            UPDATE knock.payment_info SET counseling_status = '상담종료'
             WHERE payment_key = $1;
             `
         , [productId]);
 
         await pg.queryUpdate(
             `
-            INSERT INTO knock.alarm (user_index, is_checked, title, content, created_at) 
-            VALUES((SELECT user_index FROM knock.psychology_payment WHERE payment_key = $1), false, $2, $3, NOW());
+            INSERT INTO knock.alarm (user_index, payment_key, is_checked, title, content, created_at) 
+            VALUES((SELECT user_index FROM knock.psychology_payment WHERE payment_key = $1), $1, false, $2, $3, NOW());
             `
         , [productId, alarm_title, alarm_content]);
 
@@ -1146,6 +1142,37 @@ module.exports.endCounseling = async(req,res)=>{
     }
 }
 
+// 상담 목록 - 배정 취소
+module.exports.cancelCounseling = async(req,res)=>{
+    const pg = new postgres();
+    const productId = req.params.productId;
+
+    try{
+        await pg.connect();
+        await pg.queryUpdate(
+            `
+            UPDATE knock.payment_info SET counseling_status = '배정취소'
+            WHERE payment_key = $1;
+            `
+        , [productId]);
+
+        return res.status(200).send();
+    }
+    catch(err){
+        if(err instanceof NullParameterError)
+            return res.status(400).send();
+        if(err instanceof PostgreConnectionError)
+            return res.status(500).send();
+        if(err instanceof SqlSyntaxError)
+            return res.status(409).send();
+    }
+    finally{
+        await pg.disconnect();
+    }
+}
+
+// 검사 목록 - 배정 목록 : 전체 개수
+// module.exports.
 
 // dev_shin---end
 

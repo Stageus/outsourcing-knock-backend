@@ -56,6 +56,7 @@ router.post('/experts/:expertId/counseling/:productId/join-room', expert.joinCha
 router.post('/experts/:expertId/counseling/:productId/time', expert.setCounselingDate);
 router.post('/experts/counseling/:productId/begin', expert.beginCounseling);
 router.post('/experts/counseling/:productId/end', expert.endCounseling);
+router.post('/experts/counseling/:productId/cancel', expert.cancelCounseling);
 //
 
 // dev_Lee
