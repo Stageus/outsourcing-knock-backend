@@ -53,6 +53,9 @@ router.route('/experts/:expertId/counseling/:productId')
 router.get('/experts/:expertId/counseling/:productId/prequestion', expert.getPrequestion);
 router.get('/experts/:expertId/counseling/:productId/review', expert.getReview);
 router.post('/experts/:expertId/counseling/:productId/join-room', expert.joinChatRoom);
+router.post('/experts/:expertId/counseling/:productId/time', expert.setCounselingDate);
+router.post('/experts/counseling/:productId/begin', expert.beginCounseling);
+router.post('/experts/counseling/:productId/end', expert.endCounseling);
 //
 
 // dev_Lee

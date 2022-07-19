@@ -1015,6 +1015,138 @@ module.exports.joinChatRoom = async(req,res)=>{
     }
 }
 
+// 상담 목록 - 상담일정 확정 / 변경 
+module.exports.setCounselingDate = async(req,res)=>{
+    const pg = new postgres();
+    const expertId = req.params.expertId;
+    const productId = req.params.productId;
+    const counselingDate = req.body.time;
+    const action = req.body.action;
+
+    const alarm_title = `전문가와 상담 일정이 ${action}되었습니다.\n- 예약시간 ${counselingDate}`;
+    const alarm_content = `상담 일정변경은 상담 당일 이전까지 변경 가능합니다.`;
+
+    try{
+        await pg.connect();
+        await pg.queryUpdate(`BEGIN;`);
+        await pg.queryUpdate(
+            `
+            UPDATE knock.psychology_payment SET consultation_time = $3
+            WHERE payment_key = $1 AND expert_index = $2;
+            `
+        , [productId, expertId, counselingDate]);
+
+        await pg.queryUpdate(
+            `
+            INSERT INTO knock.alarm (user_index, is_checked, title, content, created_at) 
+            VALUES((SELECT user_index FROM knock.psychology_payment WHERE payment_key = $1), false, $2, $3, NOW());
+            `
+        , [productId, alarm_title, alarm_content]);
+
+        return res.status(200).send();
+    }
+    catch(err){
+        await pg.queryUpdate(`ROLLBACK;`);
+        if(err instanceof NullParameterError)
+            return res.status(400).send();
+        if(err instanceof PostgreConnectionError)
+            return res.status(500).send();
+        if(err instanceof SqlSyntaxError)
+            return res.status(409).send();
+    }
+    finally{
+        await pg.queryUpdate(`END;`);
+        await pg.disconnect();
+    }
+}
+
+// 상담 목록 - 상담 개시
+module.exports.beginCounseling = async(req,res)=>{
+    const pg = new postgres();
+    const productId = req.params.productId;
+
+    const alarm_title = `지금부터 상담이 시작됩니다.`;
+    const alarm_content = `상담 시작을 위해 '상담 동의서'를 확인해주세요.`;
+
+    try{
+        await pg.connect();
+        await pg.queryUpdate(`BEGIN;`);
+
+        await pg.queryUpdate(
+            `
+            UPDATE knock.service_progress SET progress_message_index = (SELECT progress_message_index FROM knock.progress_message WHERE title = '상담중')
+            WHERE payment_key = $1;
+            `
+        , [productId]);
+
+        await pg.queryUpdate(
+            `
+            INSERT INTO knock.alarm (user_index, is_checked, title, content, created_at) 
+            VALUES((SELECT user_index FROM knock.psychology_payment WHERE payment_key = $1), false, $2, $3, NOW());
+            `
+        , [productId, alarm_title, alarm_content]);
+
+        return res.status(200).send();
+    }
+    catch(err){
+        await pg.queryUpdate(`ROLLBACK;`);
+        if(err instanceof NullParameterError)
+            return res.status(400).send();
+        if(err instanceof PostgreConnectionError)
+            return res.status(500).send();
+        if(err instanceof SqlSyntaxError)
+            return res.status(409).send();
+    }
+    finally{
+        await pg.queryUpdate(`END;`);
+        await pg.disconnect();
+    }
+}
+
+// 상담 목록 - 상담 종료
+module.exports.endCounseling = async(req,res)=>{
+    const pg = new postgres();
+    const productId = req.params.productId;
+
+    const alarm_title = `상담이 종료되었습니다.`;
+    const alarm_content = `님, 상담은 만족스러우셨나요? 더 좋은 서비스를 만들 수 있도록 소중한 후기를 남겨주세요.`;
+
+    try{    
+        await pg.connect();
+        await pg.queryUpdate(`BEGIN;`);
+
+        await pg.queryUpdate(
+            `
+            UPDATE knock.service_progress SET progress_message_index = (SELECT progress_message_index FROM knock.progress_message WHERE title = '상담종료')
+            WHERE payment_key = $1;
+            `
+        , [productId]);
+
+        await pg.queryUpdate(
+            `
+            INSERT INTO knock.alarm (user_index, is_checked, title, content, created_at) 
+            VALUES((SELECT user_index FROM knock.psychology_payment WHERE payment_key = $1), false, $2, $3, NOW());
+            `
+        , [productId, alarm_title, alarm_content]);
+
+        return res.status(200).send();
+    }
+    catch(err){
+        await pg.queryUpdate(`ROLLBACK;`);
+        if(err instanceof NullParameterError)
+            return res.status(400).send();
+        if(err instanceof PostgreConnectionError)
+            return res.status(500).send();
+        if(err instanceof SqlSyntaxError)
+            return res.status(409).send();
+    }
+    finally{
+        await pg.queryUpdate(`END;`);
+        await pg.disconnect();
+    }
+}
+
+
 // dev_shin---end
 
 // dev_Lee---start
