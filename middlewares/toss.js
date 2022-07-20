@@ -131,7 +131,8 @@ module.exports.approvalCardPayment = async(req,res)=>{
             await pg.queryExecute('BEGIN;',[]);
                 
                 // 심리검사에 대한 결제라면
-                if(counseling_type === "검사"){
+                console.log(counseling_type);
+                if(counseling_type === "미정"){
                     
                     await pg.queryUpdate(
                         `

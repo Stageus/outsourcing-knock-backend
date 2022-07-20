@@ -546,16 +546,49 @@ module.exports.getAvailableCoupon = async(req,res) =>{
 }
 
 
-/*
-SELECT payment_info.payment_key, expert.expert_index, product_name, status AS payment_status, counseling_status, payment_date, 
-(SELECT expert_type AS type 
-FROM knock.have_expert_type 
-INNER JOIN knock.expert_type 
-ON have_expert_type.expert_index = psychology_payment.expert_index 
-AND have_expert_type.expert_type_index = expert_type.expert_type_index) 
-FROM knock.psychology_payment
-INNER JOIN knock.payment_info
-ON psychology_payment.user_index = 2 AND  payment_info.payment_key = psychology_payment.payment_key 
-INNER JOIN knock.expert
-ON expert.expert_index = psychology_payment.expert_index;
-*/
+module.exports.getServiceUsageHistories = async(req, res) =>{
+    const pg = new postgres();
+    const userId = req.params.userid;
+    try{
+        await pg.connect();
+        await parameter.nullCheck(userId);
+        const result = await pg.queryExecute(
+            `
+            SELECT payment_info.payment_key, expert.expert_index AS expert_id, expert.name AS expert_name,
+                (SELECT expert_type FROM knock.have_expert_type 
+                INNER JOIN knock.expert_type 
+                ON have_expert_type.expert_index = psychology_payment.expert_index 
+                AND have_expert_type.expert_type_index = expert_type.expert_type_index)
+            ,profile_img_url,
+                (SELECT array_agg(type) FROM knock.counseling_type INNER JOIN knock.expert_counseling_type ON expert_counseling_type.expert_index = expert.expert_index AND counseling_type.counseling_type_index = expert_counseling_type.counseling_type_index) AS counseling_type
+            , product_name, status AS payment_status, payment_date, counseling_status
+            FROM knock.psychology_payment
+            INNER JOIN knock.payment_info
+            ON psychology_payment.user_index = $1 AND  payment_info.payment_key = psychology_payment.payment_key 
+            INNER JOIN knock.expert
+            ON expert.expert_index = psychology_payment.expert_index
+            UNION
+            SELECT payment_info.payment_key, null, null, null, null, null, product_name, status AS payment_status, payment_date, counseling_type
+            FROM knock.payment_info
+            INNER JOIN knock.test_payment
+            ON test_payment.user_index = $1 AND test_payment.payment_key = payment_info.payment_key
+            AND payment_info.status != 'CANCLE';
+            `,[userId]);
+        
+        return res.status(200).send(result.rows);
+    }
+    catch(err){
+        console.log(err);
+        if(err instanceof NullParameterError)
+            return res.status(400).send();
+
+        if(err instanceof PostgreConnectionError)
+            return res.status(500).send();
+        
+        if(err instanceof SqlSyntaxError)
+            return res.status(500).send();
+    }
+    finally{
+        await pg.disconnect();
+    }
+}

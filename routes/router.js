@@ -7,6 +7,9 @@ const expert = require('../middlewares/expert');
 const jwtToken = require('../middlewares/jwtToken');
 const toss = require('../middlewares/toss');
 
+//dev_Lee
+router.get('/users/:userid/service-usage-histories', jwtToken.verifyToken, userAccount.getServiceUsageHistories);
+//dev_Lee
 router.route('/users/:userid/email-authentication')
         .post(jwtToken.verifyToken, userAccount.sendAuthenticationEmail)
         .get(userAccount.authenticateUserEmail);
@@ -56,6 +59,7 @@ router.get('/payment-success',toss.approvalCardPayment);
 router.post('/webhook',toss.getWebhook);
 router.get('/images/banners/:fileName', banner.getBannerimage);
 router.get('/images/expert/profile/:fileName', expert.getProfileImage);
+
 //
 
 module.exports = router;
