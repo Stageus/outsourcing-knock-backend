@@ -7,6 +7,7 @@ dotenv.config({path : path.join(__dirname, "../config/.env")});
 
 const config = {
     secretKey : process.env.TOKEN_SECRETKEY,
+    adminSecretKey : process.env.ADMIN_TOKEN_SECRETKEY
 }
 
 module.exports.issueToken = async (reqId, expire = "100m") =>{
@@ -16,6 +17,25 @@ module.exports.issueToken = async (reqId, expire = "100m") =>{
                 id : reqId, 
             },
             config.secretKey,
+            { // options
+                expiresIn: expire,
+                issuer : "knock",
+            }
+        )
+        return signedJwt;
+    }
+    catch(err){
+        throw new TokenIssueError(err);
+    }
+};
+
+module.exports.issueAdminToken = async (reqId, expire = "100m") =>{
+    try{
+        const signedJwt = jwt.sign(
+            { // payload
+                id : reqId, 
+            },
+            config.adminSecretKey,
             { // options
                 expiresIn: expire,
                 issuer : "knock",

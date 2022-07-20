@@ -6,9 +6,11 @@ const banner = require('../middlewares/banner')
 const expert = require('../middlewares/expert');
 const jwtToken = require('../middlewares/jwtToken');
 const toss = require('../middlewares/toss');
+const admin = require('../middlewares/admin');
 
 //dev_Lee
 router.get('/users/:userid/service-usage-histories', jwtToken.verifyToken, userAccount.getServiceUsageHistories);
+router.head('/users/:email', jwtToken.verifyAdminToken, admin.checkDuplicatedEmail);
 //dev_Lee
 router.route('/users/:userid/email-authentication')
         .post(jwtToken.verifyToken, userAccount.sendAuthenticationEmail)
@@ -59,7 +61,10 @@ router.get('/payment-success',toss.approvalCardPayment);
 router.post('/webhook',toss.getWebhook);
 router.get('/images/banners/:fileName', banner.getBannerimage);
 router.get('/images/expert/profile/:fileName', expert.getProfileImage);
-
+router.post('/superadmin-signin', admin.login);
+router.post('/searching-user/:pageCount', jwtToken.verifyAdminToken, admin.searchUser);
+router.put('/users/:userid/blocking-status', jwtToken.verifyAdminToken, admin.modifyUserBlockingStatus);
+router.post('/superadmin-signup', userAccount.createAccount);
 //
 
 module.exports = router;

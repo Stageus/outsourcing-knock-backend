@@ -18,12 +18,12 @@ module.exports.login = async(req, res)=>{
         await pg.connect();
         const result = await pg.queryExecute(
             `
-            SELECT user_index AS user_id, user_status FROM knock.users WHERE id = $1 AND password = $2;
+            SELECT user_index AS user_id, is_left, is_blocked FROM knock.users WHERE id = $1 AND password = $2;
             `
         ,[email, hashedPassword]);
         if(result.rowCount == 0)       // id, password 쌍이 존재하지 않을 경우
             return res.status(401).send();
-        else if(result.rows[0].user_status == "block")  // 차단된 사용자일 경우
+        else if(result.rows[0].is_blocked == true || result.rows[0].is_left == true)  // 차단된 사용자일 경우
             return res.status(403).send();
         
         const token = await jwtToken.issueToken(result.rows[0].user_id); // 인증된 사용자라면 유저 index값을 넣어 토큰을 만들어준다.
@@ -48,7 +48,7 @@ module.exports.login = async(req, res)=>{
             return res.status(500).send();
     }
     finally{
-
+        await pg.disconnect();
     }
 
 };
@@ -592,3 +592,26 @@ module.exports.getServiceUsageHistories = async(req, res) =>{
         await pg.disconnect();
     }
 }
+
+
+//OR title = '상담 일정이 확정되었습니다.'
+/*
+SELECT title, 
+CASE WHEN title = '전문가와 상담 일정이 확정되었습니다.' OR '상담 일정이 확정되었습니다.' OR'상담 일정이 변경되었습니다.'
+THEN COALESCE((SELECT counseling_start_time FROM knock.psychology_payment WHERE payment_key = 'yvKaNpekDYjZ61JOxRQVE1PNo92dRVW0X9bAqwdmgPznL42o'),(SELECT 
+    counseling_start_time FROM knock.allotted_test WHERE payment_key ='yvKaNpekDYjZ61JOxRQVE1PNo92dRVW0X9bAqwdmgPznL42o'))
+ELSE NULL end AS content,
+CASE WHEN title = '전문가와 상담 일정이 확정되었습니다.' 
+THEN COALESCE((SELECT counseling_end_time FROM knock.psychology_payment WHERE payment_key = 'yvKaNpekDYjZ61JOxRQVE1PNo92dRVW0X9bAqwdmgPznL42o'),(SELECT  
+    counseling_end_time FROM knock.allotted_test WHERE payment_key ='yvKaNpekDYjZ61JOxRQVE1PNo92dRVW0X9bAqwdmgPznL42o'))
+ELSE NULL END AS t
+FROM knock.service_progress 
+INNER JOIN knock.progress_message 
+USING(progress_message_index) 
+WHERE payment_key ='yvKaNpekDYjZ61JOxRQVE1PNo92dRVW0X9bAqwdmgPznL42o' 
+ORDER BY created_at;
+*/
+
+/*
+SELECT EXTRACT(ISODOW FROM DATE(counseling_start_time)) FROM knock.psychology_payment;
+*/
