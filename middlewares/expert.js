@@ -1171,8 +1171,7 @@ module.exports.cancelCounseling = async(req,res)=>{
     }
 }
 
-// 검사 목록 - 배정 목록 : 전체 개수
-// module.exports.
+//
 
 // dev_shin---end
 

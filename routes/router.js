@@ -5,6 +5,7 @@ const terms = require("../middlewares/terms");
 const banner = require('../middlewares/banner')
 const expert = require('../middlewares/expert');
 const jwtToken = require('../middlewares/jwtToken');
+const testList = require('../middlewares/testList');
 
 router.route('/users/:userid/email-authentication')
         .post(jwtToken.verifyToken, userAccount.sendAuthenticationEmail)
@@ -57,6 +58,18 @@ router.post('/experts/:expertId/counseling/:productId/time', expert.setCounselin
 router.post('/experts/counseling/:productId/begin', expert.beginCounseling);
 router.post('/experts/counseling/:productId/end', expert.endCounseling);
 router.post('/experts/counseling/:productId/cancel', expert.cancelCounseling);
+
+router.get('/experts/test/allot/count', testList.getAllocationListCount);
+router.get('/experts/test/allot/:pagecount', testList.getAllocationList);
+router.get('/experts/test/allot/:productIndex/view-result', testList.viewResult);
+router.post('/experts/:expertId/test/allocate', testList.allot);
+router.get('/experts/test/counseling/count', testList.getCounselingCount);
+router.get('/experts/:expertId/test/counseling/:searchType/:description/:progress/:cancelStatus/:startDate/:endDate/:pagecount', testList.getCounselingList);
+router.get('/experts/test/counseling/:productId', testList.getCounseling);
+router.delete('/experts/test/counseling/:productId', testList.cancelCounseling);
+router.put('/experts/test/counseling/:productId', testList.updateCounseling);
+router.post('/experts/test/counseling/:productId/result-open', testList.openCounselingResult);
+router.get('/experts/test/counseling/:productId/review', testList.getReview);
 //
 
 // dev_Lee
