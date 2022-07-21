@@ -86,7 +86,13 @@ const getRoomList = (socket) => {
             
             const result = await pg.queryExecute( // room list에 expert 프로필 정보 포함해서 보내기
                 `
-                SELECT * FROM knock.room where user_index = $1;
+                SELECT R.room_index, user_index, R.expert_index, is_terminated, name, profile_img_url, message AS last_chat_message, C.created_at AS last_chat_time, sender_index,
+                (SELECT expert_type FROM knock.expert_type WHERE expert_type_index = HET.expert_type_index)
+                FROM knock.room AS R
+                JOIN knock.expert AS E ON R.expert_index = E.expert_index
+                JOIN knock.chatting AS C ON R.last_chat_index = C.chatting_index
+                JOIN knock.have_expert_type AS HET ON E.expert_index = HET.expert_index
+                WHERE user_index = $1;
                 `
             , [user_id]);
 

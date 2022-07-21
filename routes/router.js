@@ -65,9 +65,10 @@ router.get('/experts/test/allot/:productIndex/view-result', testList.viewResult)
 router.post('/experts/:expertId/test/allocate', testList.allot);
 router.get('/experts/test/counseling/count', testList.getCounselingCount);
 router.get('/experts/:expertId/test/counseling/:searchType/:description/:progress/:cancelStatus/:startDate/:endDate/:pagecount', testList.getCounselingList);
-router.get('/experts/test/counseling/:productId', testList.getCounseling);
-router.delete('/experts/test/counseling/:productId', testList.cancelCounseling);
-router.put('/experts/test/counseling/:productId', testList.updateCounseling);
+router.route('/experts/test/counseling/:productId')
+    .get(testList.getCounseling)
+    .delete(testList.cancelCounseling)
+    .put(testList.updateCounseling);
 router.post('/experts/test/counseling/:productId/result-open', testList.openCounselingResult);
 router.get('/experts/test/counseling/:productId/review', testList.getReview);
 //
