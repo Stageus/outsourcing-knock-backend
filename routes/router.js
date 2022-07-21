@@ -9,8 +9,11 @@ const toss = require('../middlewares/toss');
 const admin = require('../middlewares/admin');
 
 //dev_Lee
+router.get('/test/reviews/:pageCount', userAccount.getTestReview);
 router.get('/users/:userid/service-usage-histories', jwtToken.verifyToken, userAccount.getServiceUsageHistories);
-router.head('/users/:email', jwtToken.verifyAdminToken, admin.checkDuplicatedEmail);
+router.delete('/users/:userid/reviews',jwtToken.verifyAdminToken, admin.deleteUserReview);
+router.get('/users/:userid/reviews', jwtToken.verifyAdminToken, admin.getUserReviewList);
+router.head('/users/:email', admin.checkDuplicatedEmail);
 //dev_Lee
 router.route('/users/:userid/email-authentication')
         .post(jwtToken.verifyToken, userAccount.sendAuthenticationEmail)
@@ -63,8 +66,10 @@ router.get('/images/banners/:fileName', banner.getBannerimage);
 router.get('/images/expert/profile/:fileName', expert.getProfileImage);
 router.post('/superadmin-signin', admin.login);
 router.post('/searching-user/:pageCount', jwtToken.verifyAdminToken, admin.searchUser);
+router.post('/searching-expert', jwtToken.verifyAdminToken, admin.searchExpert);
 router.put('/users/:userid/blocking-status', jwtToken.verifyAdminToken, admin.modifyUserBlockingStatus);
 router.post('/superadmin-signup', userAccount.createAccount);
+router.post('/searching-counseling',jwtToken.verifyAdminToken, admin.searchCounseling);
 //
 
 module.exports = router;

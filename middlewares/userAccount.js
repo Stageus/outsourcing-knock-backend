@@ -594,24 +594,38 @@ module.exports.getServiceUsageHistories = async(req, res) =>{
 }
 
 
-//OR title = '상담 일정이 확정되었습니다.'
-/*
-SELECT title, 
-CASE WHEN title = '전문가와 상담 일정이 확정되었습니다.' OR '상담 일정이 확정되었습니다.' OR'상담 일정이 변경되었습니다.'
-THEN COALESCE((SELECT counseling_start_time FROM knock.psychology_payment WHERE payment_key = 'yvKaNpekDYjZ61JOxRQVE1PNo92dRVW0X9bAqwdmgPznL42o'),(SELECT 
-    counseling_start_time FROM knock.allotted_test WHERE payment_key ='yvKaNpekDYjZ61JOxRQVE1PNo92dRVW0X9bAqwdmgPznL42o'))
-ELSE NULL end AS content,
-CASE WHEN title = '전문가와 상담 일정이 확정되었습니다.' 
-THEN COALESCE((SELECT counseling_end_time FROM knock.psychology_payment WHERE payment_key = 'yvKaNpekDYjZ61JOxRQVE1PNo92dRVW0X9bAqwdmgPznL42o'),(SELECT  
-    counseling_end_time FROM knock.allotted_test WHERE payment_key ='yvKaNpekDYjZ61JOxRQVE1PNo92dRVW0X9bAqwdmgPznL42o'))
-ELSE NULL END AS t
-FROM knock.service_progress 
-INNER JOIN knock.progress_message 
-USING(progress_message_index) 
-WHERE payment_key ='yvKaNpekDYjZ61JOxRQVE1PNo92dRVW0X9bAqwdmgPznL42o' 
-ORDER BY created_at;
-*/
 
-/*
-SELECT EXTRACT(ISODOW FROM DATE(counseling_start_time)) FROM knock.psychology_payment;
-*/
+module.exports.getTestReview = async(req,res) =>{
+    const pageCount = (req.params.pageCount-1) * 20 || 0;
+    const pg = new postgres();
+    try{
+        await pg.connect();
+        const result = await pg.queryExecute(
+            `
+            SELECT expert_reviews_index AS review_id, expert_review.user_index AS user_id, reviews AS review, writed_at, is_best
+            FROM knock.expert_review
+            INNER JOIN knock.test_payment USING (payment_key)
+            LIMIT 20 OFFSET $1
+            `
+        ,[pageCount]);
+     
+        return res.status(200).send({
+            reviewList : result.rows
+        })
+    }
+    catch(err){
+        console.log(err);
+        if(err instanceof PostgreConnectionError)
+        return res.status(500).send();
+    
+        if(err instanceof SqlSyntaxError)
+        return res.status(500).send();
+
+        if(err instanceof NullParameterError)
+        return res.status(400).send();
+    }
+    finally{
+        pg.disconnect();
+    }
+
+}
