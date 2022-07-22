@@ -238,7 +238,7 @@ module.exports.getUserInformation = async(req,res) =>{
         await pg.connect();
         const result = await pg.queryExecute(
             `
-            SELECT id AS email, nickname, email_certification AS is_email_certified, affiliates FROM knock.users WHERE user_index = $1;
+            SELECT id AS email, nickname, email_certification AS is_email_certified, affiliates, is_left, is_blocked FROM knock.users WHERE user_index = $1;
             `
         ,[userId]);
 
@@ -545,7 +545,6 @@ module.exports.getAvailableCoupon = async(req,res) =>{
     }
 }
 
-
 module.exports.getServiceUsageHistories = async(req, res) =>{
     const pg = new postgres();
     const userId = req.params.userid;
@@ -592,8 +591,6 @@ module.exports.getServiceUsageHistories = async(req, res) =>{
         await pg.disconnect();
     }
 }
-
-
 
 module.exports.getTestReview = async(req,res) =>{
     const pageCount = (req.params.pageCount-1) * 20 || 0;

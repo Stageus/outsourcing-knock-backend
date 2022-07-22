@@ -29,7 +29,7 @@ module.exports.issueToken = async (reqId, expire = "100m") =>{
     }
 };
 
-module.exports.issueAdminToken = async (reqId, expire = "100m") =>{
+module.exports.issueAdminToken = async (reqId, expire = "1000m") =>{
     try{
         const signedJwt = jwt.sign(
             { // payload

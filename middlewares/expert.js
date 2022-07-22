@@ -539,7 +539,7 @@ module.exports.getExpertsList = async(req,res) =>{
             `
             SELECT expert_index AS expert_id, name, introduction_contents AS introduction, profile_img_url,
             (SELECT COUNT(*) FROM knock.expert_review AS review WHERE review.expert_index = expert.expert_index) AS review_count,
-            (SELECT expert_type AS type FROM knock.have_expert_type INNER JOIN knock.expert_type ON have_expert_type.expert_type_index = expert_type.expert_type_index WHERE have_expert_type.expert_index = expert.expert_index),
+            (SELECT expert_type AS expert_type FROM knock.have_expert_type INNER JOIN knock.expert_type ON have_expert_type.expert_index = expert.expert_index AND have_expert_type.expert_type_index = expert_type.expert_type_index),
             (SELECT array_agg(type) FROM knock.counseling_type INNER JOIN knock.expert_counseling_type ON counseling_type.counseling_type_index = expert_counseling_type.counseling_type_index WHERE expert_counseling_type.expert_index = expert.expert_index) AS type
             FROM knock.expert 
             WHERE expert_index IN (SELECT expert_index FROM knock.counseling_method_1st INNER JOIN knock.expert_counseling_method_1st ON expert_counseling_method_1st.counseling_method_1st_index = counseling_method_1st.counseling_method_1st_index WHERE counseling_method = $1)

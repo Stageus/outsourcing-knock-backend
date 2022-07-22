@@ -7,10 +7,13 @@ const expert = require('../middlewares/expert');
 const jwtToken = require('../middlewares/jwtToken');
 const toss = require('../middlewares/toss');
 const admin = require('../middlewares/admin');
+const image = require('../middlewares/image');
 
 //dev_Lee
+router.post('/sibal', image.uploadImage);
 router.get('/test/reviews/:pageCount', userAccount.getTestReview);
 router.get('/users/:userid/service-usage-histories', jwtToken.verifyToken, userAccount.getServiceUsageHistories);
+router.get('/users/:userid/reviews/:reviewid', jwtToken.verifyAdminToken, admin.getUserReview);
 router.delete('/users/:userid/reviews',jwtToken.verifyAdminToken, admin.deleteUserReview);
 router.get('/users/:userid/reviews', jwtToken.verifyAdminToken, admin.getUserReviewList);
 router.head('/users/:email', admin.checkDuplicatedEmail);
@@ -55,6 +58,9 @@ router.post('/experts/:expertId/profile', expert.updateProfile);
 //
 
 // dev_Lee
+router.route('/superadmin/users/:userid')
+        .get(jwtToken.verifyAdminToken, userAccount.getUserInformation)
+        .put(jwtToken.verifyAdminToken, admin.modifyUserInformation);
 router.get('/experts/types/:firstcategory/:secondcategory/:thirdcategory/:pagecount', expert.getExpertsList);
 router.get('/experts/:expertid', expert.getExpertDetail);
 router.post('/kakao', userAccount.kakaoLogin);
@@ -65,11 +71,17 @@ router.post('/webhook',toss.getWebhook);
 router.get('/images/banners/:fileName', banner.getBannerimage);
 router.get('/images/expert/profile/:fileName', expert.getProfileImage);
 router.post('/superadmin-signin', admin.login);
-router.post('/searching-user/:pageCount', jwtToken.verifyAdminToken, admin.searchUser);
+router.post('/searching-user', jwtToken.verifyAdminToken, admin.searchUser);
 router.post('/searching-expert', jwtToken.verifyAdminToken, admin.searchExpert);
 router.put('/users/:userid/blocking-status', jwtToken.verifyAdminToken, admin.modifyUserBlockingStatus);
 router.post('/superadmin-signup', userAccount.createAccount);
 router.post('/searching-counseling',jwtToken.verifyAdminToken, admin.searchCounseling);
+router.post('/searching-test', admin.searchTest);
+
+router.get('/experts', jwtToken.verifyAdminToken, admin.getAllExpertList);
+router.get('/users', jwtToken.verifyAdminToken, admin.getAllUserList);
+router.get('/counselings', jwtToken.verifyAdminToken, admin.getAllcounselingList);
+router.get('/tests', jwtToken.verifyAdminToken, admin.getAllTestList);
 //
 
 module.exports = router;
