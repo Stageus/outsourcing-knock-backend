@@ -5,6 +5,7 @@ const terms = require("../middlewares/terms");
 const banner = require('../middlewares/banner')
 const expert = require('../middlewares/expert');
 const jwtToken = require('../middlewares/jwtToken');
+const counselingList = require('../middlewares/counselingList');
 const testList = require('../middlewares/testList');
 const chat = require('../middlewares/chat');
 const calculate = require('../middlewares/calculate');
@@ -64,18 +65,20 @@ router.route('/experts/:expertId/info')
     .get(expert.getExpertInfo)
     .post(expert.updateExpertInfo);
 router.get('/experts/:expertId/phone-validation/:phone', expert.phoneValidation);
-router.get('/experts/counseling/count', expert.getTotalCounseling);
-router.get('/experts/:expertId/counseling/:searchType/:description/:progress/:counselingType/:startDate/:endDate/:pagecount', expert.getCounselingList);
-router.route('/experts/:expertId/counseling/:productId')
-    .get(expert.getCounseling)
-    .post(expert.updateCounseling);
-router.get('/experts/:expertId/counseling/:productId/prequestion', expert.getPrequestion);
-router.get('/experts/:expertId/counseling/:productId/review', expert.getReview);
-router.post('/experts/:expertId/counseling/:productId/join-room', expert.joinChatRoom);
-router.post('/experts/:expertId/counseling/:productId/time', expert.setCounselingDate);
-router.post('/experts/counseling/:productId/begin', expert.beginCounseling);
-router.post('/experts/counseling/:productId/end', expert.endCounseling);
-router.post('/experts/counseling/:productId/cancel', expert.cancelCounseling);
+
+router.get('/experts/test/counseling/:productId/review', testList.getReview);
+
+router.get('/experts/counseling/count', counselingList.getTotalCounseling);
+router.get('/experts/:expertId/counseling/:searchType/:description/:progress/:counselingType/:startDate/:endDate/:pagecount', counselingList.getCounselingList);
+router.get('/experts/counseling/:productId', counselingList.getCounseling);
+router.post('/experts/:expertId/counseling/:productId', counselingList.updateCounseling);
+router.get('/experts/counseling/:productId/prequestion', counselingList.getPrequestion);
+router.get('/experts/:expertId/counseling/:productId/review', counselingList.getReview);
+router.post('/experts/:expertId/counseling/:productId/join-room', counselingList.joinChatRoom);
+router.post('/experts/:expertId/counseling/:productId/time', counselingList.setCounselingDate);
+router.post('/experts/counseling/:productId/begin', counselingList.beginCounseling);
+router.post('/experts/counseling/:productId/end', counselingList.endCounseling);
+router.post('/experts/counseling/:productId/cancel', counselingList.cancelCounseling);
 
 
 router.get('/experts/test/allot/count', testList.getAllocationListCount);
@@ -84,12 +87,11 @@ router.get('/experts/test/allot/:productIndex/view-result', testList.viewResult)
 router.post('/experts/:expertId/test/allocate', testList.allot);
 router.get('/experts/test/counseling/count', testList.getCounselingCount);
 router.get('/experts/:expertId/test/counseling/:searchType/:description/:progress/:cancelStatus/:startDate/:endDate/:pagecount', testList.getCounselingList);
+router.post('/experts/test/counseling/:productId/result-open', testList.openCounselingResult);
 router.route('/experts/test/counseling/:productId')
     .get(testList.getCounseling)
     .delete(testList.cancelCounseling)
     .put(testList.updateCounseling);
-router.post('/experts/test/counseling/:productId/result-open', testList.openCounselingResult);
-router.get('/experts/test/counseling/:productId/review', testList.getReview);
 
 
 router.get('/experts/:expertId/chat', chat.getChatRoomList);
