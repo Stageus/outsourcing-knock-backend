@@ -73,9 +73,59 @@ const createRoom = (socket) =>{
 }
 
 const disconnect = (socket) => {
-    socket.on('disconnect', (roomId) => {
+    socket.on('disconnect-user', async(requestObj) => {
         // leave room 처리 및 database에 적용
-        socket.leave
+        const {room_id, user_id} = requestObj;
+        socket.leave(room_id);
+
+        const pg = new postgres();
+        const responseObj = {
+            result:null,
+            errmsg:null,
+        };
+
+        try{
+            await pg.connect();
+            
+            const result = await pg.queryExecute(
+                `
+                SELECT R.room_index, user_index, R.expert_index, is_terminated, name, profile_img_url,
+                (SELECT message FROM knock.chatting WHERE chatting_index = R.last_chat_index) AS last_chat_message,
+                (SELECT created_at FROM knock.chatting WHERE chatting_index = R.last_chat_index) AS last_chat_time,
+                (SELECT sender_index FROM knock.chatting WHERE chatting_index = R.last_chat_index),
+                (SELECT expert_type FROM knock.expert_type WHERE expert_type_index = HET.expert_type_index),
+                (SELECT not_read_chat FROM knock.participant WHERE room_index = R.room_index AND user_index = $1)
+                FROM knock.room AS R
+                JOIN knock.expert AS E ON R.expert_index = E.expert_index
+                JOIN knock.have_expert_type AS HET ON E.expert_index = HET.expert_index
+                WHERE user_index = $1;
+                `
+            , [user_id]);
+
+            if(result.rowCount != 0){
+                responseObj.result = result.rows;
+            }
+            else{
+                console.log("err : rowCount is 0");
+                responseObj.errmsg = `err : rowCount is 0`;
+            }
+
+            responseObj.result = result.rows;
+        }
+        catch(err){
+            console.log(err);
+            responseObj.errmsg = err;
+        }
+        finally{
+            socket.emit('roomList-user', responseObj);
+            await pg.disconnect();
+        }
+    });
+
+    socket.on('disconnect-expert', (requestObj) => {
+        // leave room 처리 및 database에 적용
+        const {room_id, user_id} = requestObj;
+        socket.leave(room_id);
     });
 }
 
@@ -309,11 +359,14 @@ const message = (socket, io) => {
         
         const pg = new postgres();
         const messageResponse = {
-            message_id: null,
-            room_id,
-            send_user_id,
-            message,
-            created_at: null,
+            result : [{
+                message_id: null,
+                room_id,
+                send_user_id,
+                message,
+                created_at: null
+            }],
+            errmsg : null,
         }
         const responseObj = {
             result:null,
@@ -352,7 +405,7 @@ const message = (socket, io) => {
                 [room_id, participant_id]
             );
             await pg.queryUpdate(   // 송신자의 읽지 않은 메시지 수를 0으로 set
-                `                   
+                `
                 UPDATE knock.participant 
                 SET not_read_chat = 0
                 WHERE room_index = $1 AND participant_index = $2;
@@ -360,8 +413,8 @@ const message = (socket, io) => {
                 [room_id, participant_id]
             )
 
-            messageResponse.message_id = savedMessage.rows[0].chatting_index;
-            messageResponse.created_at = savedMessage.rows[0].created_at;
+            messageResponse.result.message_id = savedMessage.rows[0].chatting_index;
+            messageResponse.result.created_at = savedMessage.rows[0].created_at;
             io.to(room_id).emit('message', messageResponse);
         }
         catch(err){

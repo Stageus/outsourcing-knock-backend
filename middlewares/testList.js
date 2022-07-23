@@ -164,6 +164,7 @@ module.exports.getCounselingList = async(req,res)=>{
     const pagePerRow = 5; // 페이지당 row 개수
 
     let whereClause = ``;
+    whereClause = `WHERE AT.expert_index = ${expertId} `;
     try{
         // make where clause
         if(searchType != "empty" && description != "empty"){
@@ -194,8 +195,7 @@ module.exports.getCounselingList = async(req,res)=>{
             if(whereClause != ""){ whereClause += "AND "; }
             whereClause += `'${startDate}'::date <= consultation_time::date AND consultation_time::date <= '${endDate}'`;
         }
-        
-        if(whereClause != "") whereClause = `WHERE AT.expert_index = ${expertId} AND ` + whereClause;
+    
         console.log(whereClause);
     }
     catch(err){
@@ -205,19 +205,19 @@ module.exports.getCounselingList = async(req,res)=>{
     
     try{
         await pg.connect();
-        await pg.queryUpdate(
+        const result = await pg.queryExecute(
             `
-            SELECT AT.payment_key AS product_key, TP.user_index, nickname AS user_nickname, counseling_status, status, consultation_time AS time
+            SELECT AT.payment_key AS product_key, TP.user_index, nickname AS user_nickname, counseling_status, status, counseling_start_time, counseling_end_time
             FROM knock.allotted_test AS AT
             JOIN knock.test_payment AS TP ON AT.payment_key = TP.payment_key
             JOIN knock.users AS U ON TP.user_index = U.user_index
-            JOIN knock.payment_info AS PI ON AT.payment_key = PI.payment_key;
+            JOIN knock.payment_info AS PI ON AT.payment_key = PI.payment_key
             ${whereClause}
             OFFSET ${pagePerRow * (pageCount-1)} LIMIT ${pagePerRow * pageCount};
             `
-        , [productId]);
+        , []);
 
-        return res.status(200).send();
+        return res.status(200).send(result.rows);
     }
     catch(err){
         if(err instanceof NullParameterError)
@@ -235,16 +235,15 @@ module.exports.getCounselingList = async(req,res)=>{
 // 검사 목록 - 해석 상담 목록 : 상세보기
 module.exports.getCounseling = async(req,res)=>{
     const pg = new postgres();
-    const expertId = req.params.expertId;
     const productId = req.params.productId;
 
     try{
-        parameter.nullCheck(expertId, productId);
+        parameter.nullCheck(productId);
         await pg.connect();
 
         const result = await pg.queryExecute(
             `
-            SELECT AT.payment_key AS product_key, TP.user_index, nickname AS user_nickname, E.name AS expert_name, consultation_time AS time, status, counseling_status,
+            SELECT AT.payment_key AS product_key, TP.user_index, nickname AS user_nickname, E.name AS expert_name, counseling_start_time, counseling_end_time, status, counseling_status,
             (SELECT EXISTS(SELECT * FROM knock.expert_review WHERE payment_key = AT.payment_key)) AS review,
             (SELECT EXISTS(SELECT * FROM knock.test_result WHERE payment_key = AT.payment_key)) AS test_result
             FROM knock.allotted_test AS AT
@@ -333,7 +332,7 @@ module.exports.updateCounseling = async(req,res)=>{
         if(err instanceof PostgreConnectionError)
             return res.status(500).send();
         if(err instanceof SqlSyntaxError)
-            return res.status(409).send(); 
+            return res.status(409).send();
     }
     finally{
         await pg.disconnect();
@@ -375,7 +374,6 @@ module.exports.openCounselingResult = async(req,res)=>{
 // 검사 목록 - 해석 상담 목록 : 후기 보기
 module.exports.getReview = async(req,res)=>{
     const pg = new postgres();
-    const expertId = req.params.expertId;
     const productId = req.params.productId;
 
     try{
@@ -405,4 +403,3 @@ module.exports.getReview = async(req,res)=>{
         await pg.disconnect();
     }
 }
-

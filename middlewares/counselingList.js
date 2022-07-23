@@ -45,6 +45,8 @@ module.exports.getCounselingList = async(req,res)=>{
 
     // make where clause
     let whereClause = ``;
+    whereClause = `WHERE PP.expert_index = ${expertId} `;
+
     if(searchType != "empty" && description != "empty"){
         if(whereClause != ""){ whereClause += "AND "; }
         if(searchType === "결제상품번호"){
@@ -71,11 +73,9 @@ module.exports.getCounselingList = async(req,res)=>{
         whereClause += `'${startDate}'::date <= consultation_time::date AND consultation_time::date <= '${endDate}'`;
     }
     
-    if(whereClause != "") whereClause = `WHERE PP.expert_index = ${expertId} AND ` + whereClause;
     console.log(whereClause);
 
     try{
-        parameter.nullCheck(); // null check
         await pg.connect();
         const result = await pg.queryExecute(
             `
@@ -117,7 +117,7 @@ module.exports.getCounseling = async(req,res)=>{
     const productId = req.params.productId;
 
     try{
-        parameter.nullCheck(expertId, productId);
+        parameter.nullCheck(productId);
         await pg.connect();
 
         const result = await pg.queryExecute(
@@ -198,7 +198,6 @@ module.exports.updateCounseling = async(req,res)=>{
 // 상담 목록 - 사전질문 보기
 module.exports.getPrequestion = async(req,res)=>{
     const pg = new postgres();
-    const expertId = req.params.expertId;
     const productId = req.params.productId;
 
     try{
