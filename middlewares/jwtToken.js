@@ -5,6 +5,8 @@ const {NullParameterError, TokenExpiredError} = require('../errors/error');
 
 module.exports.verifyToken = async(req, res, next) =>{
     try{
+
+        console.log(req.headers.authorization);
         const userId = req.body.userId || req.params.userid;
         const token = tokenUtil.parseToken(req.headers.authorization);
         await parameter.nullCheck(userId, token);
@@ -30,7 +32,6 @@ module.exports.verifyToken = async(req, res, next) =>{
     }
 };
 
-
 module.exports.verifyAdminToken = async(req, res, next) =>{
     try{
         const token = tokenUtil.parseToken(req.headers.authorization);
@@ -52,4 +53,3 @@ module.exports.verifyAdminToken = async(req, res, next) =>{
         }
     }
 };
-

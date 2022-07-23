@@ -13,7 +13,6 @@ const admin = require('../middlewares/admin');
 const image = require('../middlewares/image');
 
 //dev_Lee
-router.post('/sibal', image.uploadImage);
 router.get('/test/reviews/:pageCount', userAccount.getTestReview);
 router.get('/users/:userid/service-usage-histories', jwtToken.verifyToken, userAccount.getServiceUsageHistories);
 router.get('/users/:userid/reviews/:reviewid', jwtToken.verifyAdminToken, admin.getUserReview);
@@ -45,7 +44,9 @@ router.route('/terms')
     .post(terms.agreeTerms);
 
 router.get('/banners/:bannerid', banner.getBannerDetail);
-router.get('/banners', banner.getBannerList);
+router.route('/banners')
+        .get(banner.getBannerList)
+        .post(image.uploadBannerImage)
 
 // dev_shin
 router.get('/recommendation-experts', expert.getRecommendedExpertsList);
@@ -94,7 +95,7 @@ router.get('/experts/test/counseling/:productId/review', testList.getReview);
 router.get('/experts/:expertId/chat', chat.getChatRoomList);
 router.get('/experts/chat/:roomId', chat.getChattingList);
 router.get('/experts/chat/:roomId/counseling', chat.getProgressingList);
-router.router('/experts/:expertId/chat/macro')
+router.route('/experts/:expertId/chat/macro')
     .get(chat.getMacro)
     .post(chat.updateMacro);
 
@@ -122,12 +123,14 @@ router.post('/searching-expert', jwtToken.verifyAdminToken, admin.searchExpert);
 router.put('/users/:userid/blocking-status', jwtToken.verifyAdminToken, admin.modifyUserBlockingStatus);
 router.post('/superadmin-signup', userAccount.createAccount);
 router.post('/searching-counseling',jwtToken.verifyAdminToken, admin.searchCounseling);
-router.post('/searching-test', admin.searchTest);
+router.post('/searching-test', jwtToken.verifyAdminToken, admin.searchTest);
+router.post('/searching-banner',  admin.searchBannerList);
 
 router.get('/experts', jwtToken.verifyAdminToken, admin.getAllExpertList);
 router.get('/users', jwtToken.verifyAdminToken, admin.getAllUserList);
 router.get('/counselings', jwtToken.verifyAdminToken, admin.getAllcounselingList);
 router.get('/tests', jwtToken.verifyAdminToken, admin.getAllTestList);
+router.get('/superadmin-banners', jwtToken.verifyAdminToken, admin.getAllBannerList);
 //
 
 module.exports = router;

@@ -626,3 +626,91 @@ module.exports.modifyUserInformation =async (req,res) =>{
     }
 }
 
+module.exports.getAllBannerList = async(req,res) =>{
+
+    const pg = new postgres();
+    try{
+        await pg.connect();
+        const result = await pg.queryExecute(
+            `
+            SELECT banner_index AS banner_id, title_img_url, title, banner_order, is_opened, to_char(created_at, 'YYYY.MM.DD')
+            FROM knock.banner;
+            `
+        ,[])
+
+        return res.status(200).send({
+            bannerList : result.rows,
+            totalPageCount : result.rowCount
+        })
+        
+    }
+    catch(err){
+        if(err instanceof PostgreConnectionError)
+            return res.status(500).send();
+
+        if(err instanceof SqlSyntaxError)
+            return res.status(500).send();
+
+        return res.status(500).send();
+    }
+    finally{
+        await pg.disconnect();
+    }
+}
+
+module.exports.searchBannerList = async(req,res) =>{
+    const pg = new postgres();
+    const searchWord = '%'+req.body.searchWord+'%';
+    const startDate = req.body.startDate || '0001-01-01 00:00:00';
+    const endDate = req.body.endDate || '9999-12-31 23:59:59';
+    const isOpened = req.body.isOpened;
+    let openCondition = '';
+    try{
+        await parameter.nullCheck(searchWord, startDate, endDate, isOpened);
+
+        for(i=0; i<isOpened.length; i++){
+            if(isOpened[i] == "전체"){
+                openCondition = "true, false";
+                break;
+            }
+            else if(isOpened[i] == "Y")
+                openCondition += "true";
+            else if(isOpened[i] == "N")
+                openCondition += "false";
+
+            if(i != isOpened.length-1)
+                openCondition +=", ";
+        }
+        
+        await pg.connect();
+        const result = await pg.queryExecute(
+            `
+            SELECT banner_index AS banner_id, title_img_url, title, banner_order, is_opened, to_char(created_at, 'YYYY.MM.DD')
+            FROM knock.banner
+            WHERE title LIKE $1
+            AND created_at BETWEEN $2 AND $3
+            AND is_opened IN (${openCondition});
+            `
+        ,[searchWord, startDate, endDate]);
+        return res.status(200).send({
+            bannerList : result.rows,
+            totalPageCount : Math.ceil(result.rowCount/10)
+        })
+        
+    }
+    catch(err){
+
+        if(err instanceof NullParameterError)
+            return res.status(400).send();
+        if(err instanceof PostgreConnectionError)
+            return res.status(500).send();
+
+        if(err instanceof SqlSyntaxError)
+            return res.status(500).send();
+
+        return res.status(500).send();
+    }
+    finally{
+        await pg.disconnect();
+    }   
+}

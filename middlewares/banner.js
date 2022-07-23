@@ -12,7 +12,10 @@ module.exports.getBannerList = async(req,res) =>{
         await pg.connect();
         const result = await pg.queryExecute(
             `
-            SELECT banner_index AS banner_id, title_img_url FROM knock.banner;
+            SELECT banner_index AS banner_id, title_img_url 
+            FROM knock.banner
+            WHERE is_opened = true
+            ORDER BY banner_order;
             `
         ,[])
 
