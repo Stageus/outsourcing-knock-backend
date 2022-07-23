@@ -94,7 +94,7 @@ router.get('/experts/test/counseling/:productId/review', testList.getReview);
 router.get('/experts/:expertId/chat', chat.getChatRoomList);
 router.get('/experts/chat/:roomId', chat.getChattingList);
 router.get('/experts/chat/:roomId/counseling', chat.getProgressingList);
-router.router('/experts/:expertId/chat/macro')
+router.route('/experts/:expertId/chat/macro')
     .get(chat.getMacro)
     .post(chat.updateMacro);
 
