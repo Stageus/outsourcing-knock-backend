@@ -58,6 +58,7 @@ module.exports.createAccount = async(req, res)=>{
     const password = req.body.password;
     const nickname = req.body.nickname;
     const pg = new postgres();
+
     try{
         await parameter.nullCheck(email, password, nickname);
         const hashedPassword = await hasing.createHashedPassword(password);

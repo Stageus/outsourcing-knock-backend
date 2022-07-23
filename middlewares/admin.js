@@ -350,7 +350,7 @@ module.exports.searchCounseling = async(req,res)=>{
     try{
         await parameter.nullCheck(searchWord, counselingType, counselingStatus, searchCategory, startDate, endDate);
         if(searchCategory == "닉네임")
-            searchWordCondition = "user_index = (SELECT user_index FROM knock.users WHERE nickname LIKE $1)"
+            searchWordCondition = "payment_info.user_index = (SELECT user_index FROM knock.users WHERE nickname LIKE $1)"
         else if(searchCategory == "전문가")
             searchWordCondition = "expert_index = (SELECT expert_index FROM knock.expert WHERE name LIKE $1)"
 
@@ -369,7 +369,7 @@ module.exports.searchCounseling = async(req,res)=>{
             `
             SELECT payment_info.payment_key, (SELECT nickname FROM knock.users WHERE user_index = payment_info.user_index), ( SELECT name FROM knock.expert WHERE expert_index = psychology_payment.expert_index), 
             (SELECT expert_type FROM knock.expert_type 
-                INNER JOIN knock.have_expert_type ON have_expert_type.expert_index = psychology_payment.expert_index AND have_expert_type.expert_type_index = expert_type.expert_type_index), counseling_type, status AS payment_status, counseling_status, to_char(counseling_start_time, 'YYYY.MM.DD / HH24:MI') AS counseling_start_time
+                INNER JOIN knock.have_expert_type ON have_expert_type.expert_index = psychology_payment.expert_index AND have_expert_type.expert_type_index = expert_type.expert_type_index), counseling_type, status AS payment_status, counseling_status, to_char(counseling_start_time, 'YYYY.MM.DD / HH24:MI') AS counseling_time
             FROM knock.payment_info
             INNER JOIN knock.psychology_payment
             ON ${searchWordCondition}
@@ -420,7 +420,7 @@ module.exports.searchTest = async(req,res)=>{
         if(searchCategory == "결제상품번호")
             searchWordCondition = "WHERE test_payment.payment_key LIKE $1"
         else if(searchCategory == "회원번호")
-            searchWordCondition = "WHERE test_payment.user_index LIKE $1"
+            searchWordCondition = "WHERE CAST(test_payment.user_index AS TEXT) LIKE $1"
         else if(searchCategory == "닉네임")
             searchWordCondition = "WHERE test_payment.user_index IN (SELECT user_index FROM knock.users WHERE nickname LIKE $1)"
         else if(searchCategory == "전문가")
@@ -499,7 +499,7 @@ module.exports.getAllExpertList = async(req,res) =>{
         await pg.connect();
         const result = await pg.queryExecute(
             `
-            SELECT expert_index AS expert_id, name, phone_number AS phone, to_char(created_at, 'YYYY.MM.DD') AS created_at, is_blocked, is_inactivated, (SELECT expert_type FROM knock.expert_type INNER JOIN knock.have_expert_type ON have_expert_type.expert_index = expert.expert_index AND have_expert_type.expert_type_index = expert_type.expert_type_index)
+            SELECT expert_index AS expert_id, name, phone_number AS phone, to_char(created_at, 'YYYY.MM.DD') AS created_at, is_blocked, is_inactivated, expert_status, (SELECT expert_type FROM knock.expert_type INNER JOIN knock.have_expert_type ON have_expert_type.expert_index = expert.expert_index AND have_expert_type.expert_type_index = expert_type.expert_type_index)
             FROM knock.expert
             ORDER BY created_at;
             `
