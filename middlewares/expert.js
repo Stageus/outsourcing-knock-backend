@@ -808,7 +808,6 @@ module.exports.getCounselingList = async(req,res)=>{
 // 상담 목록 상세보기
 module.exports.getCounseling = async(req,res)=>{
     const pg = new postgres();
-    const expertId = req.params.expertId;
     const productId = req.params.productId;
 
     try{
@@ -824,9 +823,9 @@ module.exports.getCounseling = async(req,res)=>{
             FROM knock.psychology_payment AS PP
             JOIN knock.users AS U ON PP.user_index = U.user_index
             JOIN knock.payment_info AS PI ON PP.payment_key = PI.payment_key
-            WHERE PP.expert_index = $1 AND PP.payment_key = $2;
+            WHERE PP.payment_key = $1;
             `
-        , [expertId, productId]);
+        , [productId]);
 
         if(result.rowCount === 0){
             return res.status(400).send("해당하는 상품이 없습니다.");

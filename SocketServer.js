@@ -65,15 +65,17 @@ const createRoom = (socket) =>{
             console.log(err);
         }
         finally{
-            await pg.queryUpdate(`END;`)
+            await pg.queryUpdate(`END;`);
+            socket.emit('createRoom', 'complete');
             await pg.disconnect();
         }
     });
 }
 
 const disconnect = (socket) => {
-    socket.on('disconnect', () => {
+    socket.on('disconnect', (roomId) => {
         // leave room 처리 및 database에 적용
+        socket.leave
     });
 }
 
@@ -81,49 +83,86 @@ const getRoomList = (socket) => {
     socket.on('roomList-user', async(user_id)=>{
         // 유저가 속한 room 리스트 반환
         const pg = new postgres();
+
+        const responseObj = {
+            result:null,
+            errmsg:null,
+        };
+
         try{
             await pg.connect();
             
-            const result = await pg.queryExecute( // room list에 expert 프로필 정보 포함해서 보내기
+            const result = await pg.queryExecute(
                 `
-                SELECT R.room_index, user_index, R.expert_index, is_terminated, name, profile_img_url, message AS last_chat_message, C.created_at AS last_chat_time, sender_index,
-                (SELECT expert_type FROM knock.expert_type WHERE expert_type_index = HET.expert_type_index)
+                SELECT R.room_index, user_index, R.expert_index, is_terminated, name, profile_img_url,
+                (SELECT message FROM knock.chatting WHERE chatting_index = R.last_chat_index) AS last_chat_message,
+                (SELECT created_at FROM knock.chatting WHERE chatting_index = R.last_chat_index) AS last_chat_time,
+                (SELECT sender_index FROM knock.chatting WHERE chatting_index = R.last_chat_index),
+                (SELECT expert_type FROM knock.expert_type WHERE expert_type_index = HET.expert_type_index),
+                (SELECT not_read_chat FROM knock.participant WHERE room_index = R.room_index AND user_index = $1)
                 FROM knock.room AS R
                 JOIN knock.expert AS E ON R.expert_index = E.expert_index
-                JOIN knock.chatting AS C ON R.last_chat_index = C.chatting_index
                 JOIN knock.have_expert_type AS HET ON E.expert_index = HET.expert_index
                 WHERE user_index = $1;
                 `
             , [user_id]);
 
-            socket.emit('roomList-user', result.rows);
+            if(result.rowCount != 0){   
+                responseObj.result = result.rows;
+            }
+            else{
+                console.log("err : rowCount is 0");
+                responseObj.errmsg = `err : rowCount is 0`;
+            }
+
+            responseObj.result = result.rows;
         }
         catch(err){
             console.log(err);
+            responseObj.errmsg = err;
         }
         finally{
+            socket.emit('roomList-user', responseObj);
             await pg.disconnect();
         }
     })
 
+    // need modify
     socket.on('roomList-expert', async(expert_id)=>{
         // 전문가가 속한 room 리스트 반환
         const pg = new postgres();
+
+        const responseObj = {
+            result:null,
+            errmsg:null,
+        };
+
         try{
             await pg.connect();
             
-            const result = await pg.queryExecute( 
+            const result = await pg.queryExecute(
                 `
-                SELECT * FROM knock.room where expert_index = $1;
+                SELECT R.room_index, user_index, R.expert_index, is_terminated, name, profile_img_url,
+                (SELECT message FROM knock.chatting WHERE chatting_index = R.last_chat_index) AS last_chat_message,
+                (SELECT created_at FROM knock.chatting WHERE chatting_index = R.last_chat_index) AS last_chat_time,
+                (SELECT sender_index FROM knock.chatting WHERE chatting_index = R.last_chat_index),
+                (SELECT expert_type FROM knock.expert_type WHERE expert_type_index = HET.expert_type_index),
+                (SELECT not_read_chat FROM knock.participant WHERE room_index = R.room_index AND expert_index = $1)
+                FROM knock.room AS R
+                JOIN knock.expert AS E ON R.expert_index = E.expert_index
+                JOIN knock.have_expert_type AS HET ON E.expert_index = HET.expert_index
+                WHERE E.expert_index = $1;
                 `
-            , [user_id]);
+            , [expert_id]);
 
-            socket.emit('roomList-expert', result.rows);
+            responseObj.result = result.rows;
         }
         catch(err){
             console.log(err);
+            responseObj.errmsg = err;
         }
         finally{
+            socket.emit('roomList-expert', responseObj);
             await pg.disconnect();
         }
     })
@@ -135,81 +174,90 @@ const joinRoom = (socket) => {
         socket.join(room_id);
 
         const pg = new postgres();
+
+        const responseObj = {
+            result : null,
+            errmsg : null,
+        };
+
         try{
             await pg.connect();
 
             const result = await pg.queryExecute(
                 `
-                SELECT participant_index, last_read_chat_id FROM knock.participant WHERE room_index = $1 AND user_index = $2;
+                SELECT participant_index, last_read_chat_id FROM knock.participant 
+                WHERE room_index = $1 AND user_index = $2;
                 `
             , [room_id, user_id]);
 
-            // TODO : rows의 개수 예외처리
-            if(result.rowCount != 0){   
-                const responseObj = {
-                    participant_id : result.rows[0].participant_index,
-                    last_read_chat_id : result.rows[0].last_read_chat_id,
-                };
-                socket.emit('join-user', responseObj);
+            if(result.rowCount != 0){
+                responseObj.result = result.rows[0];
             }
             else{
                 console.log("err : rowCount is 0");
+                responseObj.errmsg = `err : rowCount is 0`;
             }
         }
         catch(err){
             console.log(err);
+            responseObj.errmsg = err;
         }
         finally{
+            socket.emit('join-user', responseObj);
             await pg.disconnect();
         }
-        
-        // 채팅 불러오기
-        // join하면 room_id와 room에서 자신의 participant_index를 가져옴
     })
 
+    // need modify
     socket.on('join-expert', async (joinObj) => {
         const {room_id, user_id} = joinObj;
         socket.join(room_id);
 
         const pg = new postgres();
+        const responseObj = {
+            result : null,
+            errmsg : null,
+        };
+
         try{
             await pg.connect();
 
             const result = await pg.queryExecute(
                 `
-                SELECT participant_index, last_read_chat_id FROM knock.participant WHERE room_index = $1 AND expert_index = $2;
+                SELECT participant_index, last_read_chat_id FROM knock.participant 
+                WHERE room_index = $1 AND expert_index = $2;
                 `
             , [room_id, user_id]);
 
             // TODO : rows의 개수 예외처리
-            if(result.rowCount != 0){   
-                const responseObj = {
-                    participant_id : result.rows[0].participant_index,
-                    last_read_chat_id : result.rows[0].last_read_chat_id,
-                };
-                socket.emit('join-expert', responseObj);
+            if(result.rowCount != 0){
+                responseObj.result = result.rows;
             }
             else{
                 console.log("err : rowCount is 0");
+                responseObj.errmsg = "err : rowCount is 0";
             }
         }
         catch(err){
             console.log(err);
+            responseObj.errmsg = err;
         }
         finally{
+            socket.emit('join-expert', responseObj);
             await pg.disconnect();
         }
-        
-        // 채팅 불러오기
-        // join하면 room_id와 room에서 자신의 participant_index를 가져옴
     })
 }
 
 const getChatting = (socket)=>{
     socket.on('getChatting', async (getChattingObj)=>{
-        const {room_id, user_id, participant_id, last_read_chat_id, page_count} = getChattingObj;
+        const {room_id, participant_id, page_count} = getChattingObj;
         const pagePerRow = 5; // 페이지당 댓글 개수
         const pg = new postgres();
+        const responseObj = {
+            result:null,
+            errmsg:null,
+        }
         try{
             await pg.connect();
 
@@ -236,13 +284,16 @@ const getChatting = (socket)=>{
                 , [participant_id, room_id, lastChatId]);
             }
 
-            socket.emit('getChatting', result.rows);
+            responseObj.result = result.rows;
+            responseObj.errmsg = 'no error';
         }
         catch(err){
+            responseObj.errmsg = err;
             await pg.queryUpdate(`ROLLBACK`);
             console.log(err);
         }
         finally{
+            socket.emit('getChatting', responseObj);
             await pg.queryUpdate(`END;`);
             await pg.disconnect();
         }
@@ -257,6 +308,17 @@ const message = (socket, io) => {
         const {room_id, send_user_id, message, participant_id} = messageObj;
         
         const pg = new postgres();
+        const messageResponse = {
+            message_id: null,
+            room_id,
+            send_user_id,
+            message,
+            created_at: null,
+        }
+        const responseObj = {
+            result:null,
+            errmsg:null,
+        }
         try{
             await pg.connect();
             await pg.queryUpdate(`BEGIN;`);
@@ -264,7 +326,7 @@ const message = (socket, io) => {
             // chatting table에 보낸 채팅 기록
             const savedMessage = await pg.queryExecute(
                 `
-                INSERT INTO knock.chatting (room_index, send_user_index, message, created_at)
+                INSERT INTO knock.chatting (room_index, sender_index, message, created_at)
                 VALUES ($1, $2, $3, NOW())
                 RETURNING chatting_index, created_at;
                 `,
@@ -274,19 +336,11 @@ const message = (socket, io) => {
             // room의 마지막 채팅을 업데이트
             await pg.queryUpdate(
                 `
-                UPDATE knock.room SET last_chat = $1
+                UPDATE knock.room SET last_chat_index = $1
                 WHERE room_index = $2;
                 `,
-                [message, room_id]
+                [savedMessage.rows[0].chatting_index, room_id]
             )
-            
-            const messageResponse = {
-                message_id: savedMessage.rows[0].chatting_index,
-                room_id,
-                send_user_id,
-                message,
-                createdAt: savedMessage.rows[0].created_at,
-            }
         
             await pg.queryUpdate(   // 수신자의 읽지 않은 메시지 수를 1 증가
             // 수신자는 같은 방에있는 user가 아닌 다른 participant로 찾음
@@ -305,24 +359,28 @@ const message = (socket, io) => {
                 `,
                 [room_id, participant_id]
             )
+
+            messageResponse.message_id = savedMessage.rows[0].chatting_index;
+            messageResponse.created_at = savedMessage.rows[0].created_at;
             io.to(room_id).emit('message', messageResponse);
         }
         catch(err){
             await pg.queryUpdate(`ROLLBACK;`);
+
             if(err instanceof PostgreConnectionError)
                 console.log("연결에러 : " + err);
-
             else if(err instanceof SqlSyntaxError)
                 console.log("sql 에러 : " + err);
-                
             else
                 console.log(err);
+
+            responseObj.errmsg = err;
+            socket.emit('message-failed', responseObj);
         }
         finally{
             await pg.queryUpdate(`END;`);
-            pg.disconnect();
+            await pg.disconnect();
         }
-            
     })
 }
 

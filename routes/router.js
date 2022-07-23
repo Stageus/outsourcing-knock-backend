@@ -6,6 +6,8 @@ const banner = require('../middlewares/banner')
 const expert = require('../middlewares/expert');
 const jwtToken = require('../middlewares/jwtToken');
 const testList = require('../middlewares/testList');
+const chat = require('../middlewares/chat');
+const calculate = require('../middlewares/calculate');
 
 router.route('/users/:userid/email-authentication')
         .post(jwtToken.verifyToken, userAccount.sendAuthenticationEmail)
@@ -59,6 +61,7 @@ router.post('/experts/counseling/:productId/begin', expert.beginCounseling);
 router.post('/experts/counseling/:productId/end', expert.endCounseling);
 router.post('/experts/counseling/:productId/cancel', expert.cancelCounseling);
 
+
 router.get('/experts/test/allot/count', testList.getAllocationListCount);
 router.get('/experts/test/allot/:pagecount', testList.getAllocationList);
 router.get('/experts/test/allot/:productIndex/view-result', testList.viewResult);
@@ -71,6 +74,18 @@ router.route('/experts/test/counseling/:productId')
     .put(testList.updateCounseling);
 router.post('/experts/test/counseling/:productId/result-open', testList.openCounselingResult);
 router.get('/experts/test/counseling/:productId/review', testList.getReview);
+
+
+router.get('/experts/:expertId/chat', chat.getChatRoomList);
+router.get('/experts/chat/:roomId', chat.getChattingList);
+router.get('/experts/chat/:roomId/counseling', chat.getProgressingList);
+router.router('/experts/:expertId/chat/macro')
+    .get(chat.getMacro)
+    .post(chat.updateMacro);
+
+
+router.get('/experts/:expertId/settlement/:pageCount', calculate.getCalculationDetail);
+router.put('/experts/:expertId/settlement', calculate.updateAccount);
 //
 
 // dev_Lee
