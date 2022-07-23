@@ -29,3 +29,27 @@ module.exports.verifyToken = async(req, res, next) =>{
         }
     }
 };
+
+
+module.exports.verifyAdminToken = async(req, res, next) =>{
+    try{
+        const token = tokenUtil.parseToken(req.headers.authorization);
+        await parameter.nullCheck(token);
+        req.decoded = await jwt.verify(token, process.env.ADMIN_TOKEN_SECRETKEY); // 토큰이 유효한지 체크합니다.
+    
+        next();
+    }
+    catch (err) {
+        
+        if(err instanceof NullParameterError)
+            return res.status(400).send();
+
+        if (err.name ="TokenExpiredError") {   // 토큰이 만료됐습니다.
+            return res.status(419).send();
+        }
+        else{
+            return res.status(401).send();
+        }
+    }
+};
+

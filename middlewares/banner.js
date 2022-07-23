@@ -1,5 +1,7 @@
 const postgres = require('../database/pg');
 const parameter = require('../utils/parameter');
+const path = require('path');
+const fs = require('fs');
 const {PostgreConnectionError, SqlSyntaxError, NullParameterError} = require('../errors/error');
 
 module.exports.getBannerList = async(req,res) =>{
@@ -57,5 +59,20 @@ module.exports.getBannerDetail = async(req,res)=>{
     }
     finally{
         pg.disconnect();
+    }
+}
+
+module.exports.getBannerimage = async(req,res) =>{
+    const fileName = req.params.fileName;
+
+    try{
+        const image = await fs.promises.readFile(path.join(__dirname, `../images/banners/${fileName}`))
+        res.writeHead(200, {'Content-type' : 'image/jpeg'});
+        res.write(image);
+        res.end();
+    }
+    catch(err){
+        console.log(err);
+        return res.status(500).send();
     }
 }

@@ -6,6 +6,8 @@ const hasing = require('../utils/password');
 const jwtToken = require('../utils/jwtToken');
 const array2String = require('../utils/array2String');
 const phoneValidation = require('../utils/phoneValidation');
+const fs = require('fs');
+const path = require('path');
 
 //추천 전문가 리스트 가져오기 (3명)
 module.exports.getRecommendedExpertsList = async(req,res) =>{
@@ -17,13 +19,12 @@ module.exports.getRecommendedExpertsList = async(req,res) =>{
             `
             SELECT expert_index AS expert_id, name, introduction_contents AS introduction, profile_img_url,
             (SELECT COUNT(*) FROM knock.expert_review AS review WHERE review.expert_index = expert.expert_index) AS review_count,
-            (SELECT expert_type AS type FROM knock.have_expert_type INNER JOIN knock.expert_type ON have_expert_type.expert_type_index = expert_type.expert_type_index WHERE have_expert_type.expert_index = expert.expert_index)
+            (SELECT expert_type AS type FROM knock.have_expert_type INNER JOIN knock.expert_type ON have_expert_type.expert_index = expert.expert_index AND have_expert_type.expert_type_index = expert_type.expert_type_index)
             FROM knock.expert ORDER BY RANDOM() LIMIT 3;
             `
         ,[])
-
         return res.status(200).send({
-            bannerList : result.rows
+            expertList : result.rows
         })
     }
     catch(err){
@@ -1189,7 +1190,7 @@ module.exports.getExpertsList = async(req,res) =>{
             `
             SELECT expert_index AS expert_id, name, introduction_contents AS introduction, profile_img_url,
             (SELECT COUNT(*) FROM knock.expert_review AS review WHERE review.expert_index = expert.expert_index) AS review_count,
-            (SELECT expert_type AS type FROM knock.have_expert_type INNER JOIN knock.expert_type ON have_expert_type.expert_type_index = expert_type.expert_type_index WHERE have_expert_type.expert_index = expert.expert_index),
+            (SELECT expert_type AS expert_type FROM knock.have_expert_type INNER JOIN knock.expert_type ON have_expert_type.expert_index = expert.expert_index AND have_expert_type.expert_type_index = expert_type.expert_type_index),
             (SELECT array_agg(type) FROM knock.counseling_type INNER JOIN knock.expert_counseling_type ON counseling_type.counseling_type_index = expert_counseling_type.counseling_type_index WHERE expert_counseling_type.expert_index = expert.expert_index) AS type
             FROM knock.expert 
             WHERE expert_index IN (SELECT expert_index FROM knock.counseling_method_1st INNER JOIN knock.expert_counseling_method_1st ON expert_counseling_method_1st.counseling_method_1st_index = counseling_method_1st.counseling_method_1st_index WHERE counseling_method = $1)
@@ -1200,7 +1201,7 @@ module.exports.getExpertsList = async(req,res) =>{
         ,[firstCategory, secondCategory, thirdCategory, pageCount])
 
         return res.status(200).send({
-            bannerList : result.rows
+            expertList : result.rows
         })
     }
     catch(err){
@@ -1251,7 +1252,6 @@ module.exports.getExpertDetail = async(req, res) =>{
     }
 }
 
-//TODO 결제 테이블 완성되면 쿼리 짜기. 지금은 상담방식을 가져올 수 없음
 module.exports.getBestReview = async(req,res) =>{
     const pg = new postgres();
     const expertId = req.params.expertid;
@@ -1261,9 +1261,16 @@ module.exports.getBestReview = async(req,res) =>{
         await pg.connect();
         const result = await pg.queryExecute(
             `
-            SELECT expert_reviews_index AS review_id, user_index AS user_id, 
+            SELECT expert_reviews_index AS review_id, user_index AS user_id, reviews AS review, writed_at,
+            (SELECT counseling_type FROM knock.payment_info WHERE payment_info.payment_info_index = expert_review.payment_info_index)
+            FROM knock.expert_review
+            WHERE expert_index = $1 AND is_best = true;
             `
         [expertId]);
+     
+        return res.status(200).send({
+            bestReviewList : result.rows
+        })
     }
     catch(err){
         if(err instanceof PostgreConnectionError)
@@ -1281,18 +1288,28 @@ module.exports.getBestReview = async(req,res) =>{
 
 }
 
-//TODO 결제 테이블 완성되면 쿼리 짜기
 module.exports.getReviewList = async(req,res) =>{
     const pg = new postgres();
     const expertId = req.params.expertid;
+    const pageCount = (req.params.pagecount-1) * 15;
 
     try{
         await parameter.nullCheck(expertId);
         await pg.connect();
         const result = await pg.queryExecute(
             `
+            SELECT expert_reviews_index AS review_id, user_index AS user_id, reviews AS review, writed_at,
+            (SELECT counseling_type FROM knock.payment_info WHERE payment_info.payment_info_index = expert_review.payment_info_index)
+            FROM knock.expert_review 
+            WHERE expert_index = $1 AND is_best = false
+            LIMIT 15 OFFSET $2
+            ORDER BY writed_at;
             `
-        [expertId]);
+        [expertId, pageCount]);
+
+        return res.status(200).send({
+            reviewList : result.rows
+        })
     }
     catch(err){
         if(err instanceof PostgreConnectionError)
@@ -1307,6 +1324,23 @@ module.exports.getReviewList = async(req,res) =>{
     finally{
         pg.disconnect();
     }
+
 }
+
+module.exports.getProfileImage = async(req,res) =>{
+    const fileName = req.params.fileName;
+
+    try{
+        const image = await fs.promises.readFile(path.join(__dirname, `../images/expert/profile/${fileName}`))
+        res.writeHead(200, {'Content-type' : 'image/jpeg'});
+        res.write(image);
+        res.end();
+    }
+    catch(err){
+        console.log(err);
+        return res.status(500).send();
+    }
+}
+
 
 // dev_Lee---end

@@ -96,6 +96,21 @@ class CreatedHashedPaswordError extends Error{
     }
 }
 
+class RedisConnectionError extends Error{
+    RedisConnectionError(err){
+        this.message = "redis 연결에 실패하였습니다."
+        this.name = error.name;
+        this.stack = error.stack;
+    }
+}
+
+class RedisError extends Error{
+    RedisError(err){
+        this.message = "redis get, set 사용 중 오류가 발생하였습니다."
+        this.name = error.name;
+        this.stack = error.stack;
+    }
+}
 
 module.exports = {
   BadRequestError,
@@ -110,4 +125,6 @@ module.exports = {
   NullParameterError,
   SendMailError,
   CreatedHashedPaswordError,
+  RedisConnectionError,
+  RedisError,
 };
