@@ -17,13 +17,13 @@ http.listen(port, () => {
 
 io.on('connection', (socket)=> {
     socket.emit('connectmsg', '연결됨');
-   
+
     getChatting(socket);
     createRoom(socket);
     disconnect(socket);
     getRoomList(socket);
     joinRoom(socket);
-    message(socket, io);
+    message(socket);
     readChat(socket);    
 });
 
@@ -40,7 +40,7 @@ const createRoom = (socket) =>{
             await pg.queryUpdate(`BEGIN;`)
             const result = await pg.queryExecute(
                 `
-                INSERT INTO knock.room (user_index, expert_index, created_at) VALUES($1, $2, NOW())
+                INSERT INTO knock.room (user_index, expert_index, created_at) VALUES($1, $2, NOW() + '9 hour'::interval)
                 RETURNING room_index;
                 `
             , [parseInt(user_id), parseInt(expert_id)]);
@@ -126,6 +126,12 @@ const disconnect = (socket) => {
         // leave room 처리 및 database에 적용
         const {room_id, user_id} = requestObj;
         socket.leave(room_id);
+
+        const responseObj = {
+            result:"방을 나갔습니다",
+            errmsg:null,
+        };
+        socket.emit('disconnect-expert', responseObj);
     });
 }
 
@@ -192,16 +198,14 @@ const getRoomList = (socket) => {
             
             const result = await pg.queryExecute(
                 `
-                SELECT R.room_index, user_index, R.expert_index, is_terminated, name, profile_img_url,
+                SELECT R.room_index, R.user_index, R.expert_index, is_terminated,
+	            (SELECT nickname FROM knock.users WHERE user_index = R.user_index) AS name,
                 (SELECT message FROM knock.chatting WHERE chatting_index = R.last_chat_index) AS last_chat_message,
                 (SELECT created_at FROM knock.chatting WHERE chatting_index = R.last_chat_index) AS last_chat_time,
                 (SELECT sender_index FROM knock.chatting WHERE chatting_index = R.last_chat_index),
-                (SELECT expert_type FROM knock.expert_type WHERE expert_type_index = HET.expert_type_index),
-                (SELECT not_read_chat FROM knock.participant WHERE room_index = R.room_index AND expert_index = $1)
+                (SELECT not_read_chat FROM knock.participant WHERE room_index = R.room_index AND expert_index = R.expert_index)
                 FROM knock.room AS R
-                JOIN knock.expert AS E ON R.expert_index = E.expert_index
-                JOIN knock.have_expert_type AS HET ON E.expert_index = HET.expert_index
-                WHERE E.expert_index = $1;
+                WHERE expert_index = $1;
                 `
             , [expert_id]);
 
@@ -281,7 +285,7 @@ const joinRoom = (socket) => {
 
             // TODO : rows의 개수 예외처리
             if(result.rowCount != 0){
-                responseObj.result = result.rows;
+                responseObj.result = result.rows[0];
             }
             else{
                 console.log("err : rowCount is 0");
@@ -314,12 +318,15 @@ const getChatting = (socket)=>{
             await pg.queryUpdate(`BEGIN;`);
             const result = await pg.queryExecute(
                 `
-                SELECT * FROM knock.chatting 
-                WHERE room_index = $1
+                SELECT chatting_index, sender_index, message, C.created_at, is_alarm, 
+                (SELECT nickname FROM knock.users WHERE user_index = R.user_index)
+                FROM knock.chatting AS C
+                JOIN knock.room AS R ON C.room_index = R.room_index
+                WHERE C.room_index = $1
                 ORDER BY chatting_index ASC
-                OFFSET ${pagePerRow * (page_count - 1)} LIMIT ${pagePerRow * page_count};
                 `
             , [room_id]);
+            //OFFSET ${pagePerRow * (page_count - 1)} LIMIT ${pagePerRow * page_count};
 
             if(result.rowCount != 0){
                 const lastChatId = result.rows[result.rowCount - 1].chatting_index;
@@ -352,17 +359,19 @@ const getChatting = (socket)=>{
 
 // joinRoom에서 처음으로 채팅을 불러오고, 추가로 채팅을 더 불러오는 on함수 필요.
 
-const message = (socket, io) => {
+const message = (socket) => {
     socket.on('message', async(messageObj) => {
         // participant_id는 다른 room에 같은 userId를 구분하기 위함
-        const {room_id, send_user_id, message, participant_id} = messageObj;
+        const {room_id, sender_id, message, participant_id} = messageObj;
         
+        console.log('socket.on message');
+
         const pg = new postgres();
         const messageResponse = {
             result : [{
                 message_id: null,
                 room_id,
-                send_user_id,
+                sender_id,
                 message,
                 created_at: null
             }],
@@ -380,10 +389,10 @@ const message = (socket, io) => {
             const savedMessage = await pg.queryExecute(
                 `
                 INSERT INTO knock.chatting (room_index, sender_index, message, created_at)
-                VALUES ($1, $2, $3, NOW())
+                VALUES ($1, $2, $3, NOW() + '9 hour'::interval)
                 RETURNING chatting_index, created_at;
                 `,
-                [room_id, send_user_id, message]
+                [room_id, sender_id, message]
             );
             
             // room의 마지막 채팅을 업데이트
@@ -413,9 +422,14 @@ const message = (socket, io) => {
                 [room_id, participant_id]
             )
 
-            messageResponse.result.message_id = savedMessage.rows[0].chatting_index;
-            messageResponse.result.created_at = savedMessage.rows[0].created_at;
-            io.to(room_id).emit('message', messageResponse);
+            messageResponse.result[0].message_id = savedMessage.rows[0].chatting_index;
+            messageResponse.result[0].created_at = savedMessage.rows[0].created_at;
+            
+            socket.to(room_id).emit('message', messageResponse);
+            socket.emit('message', messageResponse);
+
+            // -- 위 두 코드를 아래 하나의 코드로 사용할 수 있는 것으로 보임
+            // socket.nsp.to(room_id).emit('message', messageResponse);
         }
         catch(err){
             await pg.queryUpdate(`ROLLBACK;`);
@@ -427,7 +441,7 @@ const message = (socket, io) => {
             else
                 console.log(err);
 
-            responseObj.errmsg = err;
+            responseObj.errmsg = "전송에 실패하였습니다.";
             socket.emit('message-failed', responseObj);
         }
         finally{
