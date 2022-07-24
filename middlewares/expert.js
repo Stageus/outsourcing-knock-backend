@@ -238,7 +238,7 @@ module.exports.createAccount = async(req,res)=>{
         await pg.queryUpdate(`BEGIN;`);
         await pg.queryUpdate(
             `
-            INSERT into knock.expert (name, email, password, phone_number, profile_img_url, id_card_img_url, bankbook_copy_img_url, education, qualification, career, created_at) 
+            INSERT into knock.expert (expert_status, name, email, password, phone_number, profile_img_url, id_card_img_url, bankbook_copy_img_url, education, qualification, career, created_at)
 	            VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW());
             `
         , [name, email, hashedPassword, call, profileImgUrl, idCardImgUrl, bankBookImgUrl, education, qualification, career]);

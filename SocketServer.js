@@ -25,6 +25,7 @@ io.on('connection', (socket)=> {
     joinRoom(socket);
     message(socket);
     readChat(socket);    
+    debug(socket, io);
 });
 
 // 실질적으로 socket.io에 create room기능은 join room시 생성되지만 DB table에는 별도로 처리해야함
@@ -126,6 +127,7 @@ const disconnect = (socket) => {
         // leave room 처리 및 database에 적용
         const {room_id, user_id} = requestObj;
         socket.leave(room_id);
+        socket.disconnect();
 
         const responseObj = {
             result:"방을 나갔습니다",
@@ -362,16 +364,14 @@ const getChatting = (socket)=>{
 const message = (socket) => {
     socket.on('message', async(messageObj) => {
         // participant_id는 다른 room에 같은 userId를 구분하기 위함
-        const {room_id, sender_id, message, participant_id} = messageObj;
-        
-        console.log('socket.on message');
+        const {room_id, sender_index, message, participant_id} = messageObj;
 
         const pg = new postgres();
         const messageResponse = {
             result : [{
                 message_id: null,
                 room_id,
-                sender_id,
+                sender_index,
                 message,
                 created_at: null
             }],
@@ -392,7 +392,7 @@ const message = (socket) => {
                 VALUES ($1, $2, $3, NOW() + '9 hour'::interval)
                 RETURNING chatting_index, created_at;
                 `,
-                [room_id, sender_id, message]
+                [room_id, sender_index, message]
             );
             
             // room의 마지막 채팅을 업데이트
@@ -483,4 +483,17 @@ const readChat = (socket) => {
             pg.disconnect();
         }
     })
+}
+
+const debug = (socket, io) =>{
+    socket.on('debug', async(debugObj)=>{
+        const {room_id} = debugObj;
+
+        console.log(io.sockets.adapter.rooms);
+        const responseObj = {
+            value : socket.rooms,
+            hello: 1,
+        }
+        socket.emit('debug',responseObj);
+    });
 }
