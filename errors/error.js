@@ -112,6 +112,14 @@ class RedisError extends Error{
     }
 }
 
+class ImageFileExtensionError extends Error{
+    ImageFileExtensionError(){
+        this.message = "이미지 파일이 아닙니다."
+        this.name = "ImageFileExtensionError";
+        this.stack = `${this.message}\n${new Error().stack}`;
+    }
+}
+
 module.exports = {
   BadRequestError,
   UnauthorizedError,
@@ -127,4 +135,5 @@ module.exports = {
   CreatedHashedPaswordError,
   RedisConnectionError,
   RedisError,
+  ImageFileExtensionError,
 };

@@ -47,7 +47,7 @@ router.route('/terms')
 router.get('/banners/:bannerid', banner.getBannerDetail);
 router.route('/banners')
         .get(banner.getBannerList)
-        .post(image.uploadBannerImage)
+        .post(jwtToken.verifyAdminToken, image.uploadBannerImage)
 
 // dev_shin
 router.get('/recommendation-experts', expert.getRecommendedExpertsList);
@@ -111,6 +111,8 @@ router.route('/superadmin/users/:userid')
         .get(jwtToken.verifyAdminToken, userAccount.getUserInformation)
         .put(jwtToken.verifyAdminToken, admin.modifyUserInformation);
 router.get('/experts/types/:firstcategory/:secondcategory/:thirdcategory/:pagecount', expert.getExpertsList);
+router.get('/experts/:expertid/reviews/:pagecount', expert.getReviewList);
+router.get('/experts/:expertid/best-reviews', expert.getBestReview);
 router.get('/experts/:expertid', expert.getExpertDetail);
 router.post('/kakao', userAccount.kakaoLogin);
 router.post('/google', userAccount.googleLogin);
@@ -126,13 +128,22 @@ router.put('/users/:userid/blocking-status', jwtToken.verifyAdminToken, admin.mo
 router.post('/superadmin-signup', userAccount.createAccount);
 router.post('/searching-counseling',jwtToken.verifyAdminToken, admin.searchCounseling);
 router.post('/searching-test', jwtToken.verifyAdminToken, admin.searchTest);
-router.post('/searching-banner',  admin.searchBannerList);
+router.post('/searching-banner', jwtToken.verifyAdminToken, admin.searchBannerList);
+router.post('/searching-coupon', admin.searchCouponList);
+
 
 router.get('/experts', jwtToken.verifyAdminToken, admin.getAllExpertList);
 router.get('/users', jwtToken.verifyAdminToken, admin.getAllUserList);
 router.get('/counselings', jwtToken.verifyAdminToken, admin.getAllcounselingList);
 router.get('/tests', jwtToken.verifyAdminToken, admin.getAllTestList);
 router.get('/superadmin-banners', jwtToken.verifyAdminToken, admin.getAllBannerList);
+router.get('/superadmin-payment', jwtToken.verifyAdminToken, admin.getAllPaymentList);
+router.route('/superadmin-review/:reviewId')
+        .get(jwtToken.verifyAdminToken ,admin.getReviewDetail)
+        .put(jwtToken.verifyAdminToken, admin.modifyReview);
+router.get('/superadmin-review', jwtToken.verifyAdminToken, admin.getAllReviewList);
+router.get('/superadmin-coupon', jwtToken.verifyAdminToken, admin.getAllCouponList);
+router.post('/superadmin-coupon', jwtToken.verifyAdminToken, admin.createNormalCoupon);
 //
 
 module.exports = router;

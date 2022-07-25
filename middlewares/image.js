@@ -4,7 +4,7 @@ const imageUtil = require('../utils/image');
 const postgres = require('../database/pg');
 const parameter = require('../utils/parameter');
 const util = require('util');
-const {PostgreConnectionError, SqlSyntaxError, NullParameterError} = require('../errors/error');
+const {PostgreConnectionError, SqlSyntaxError, NullParameterError, ImageFileExtensionError} = require('../errors/error');
 
 
 const fileFilter = (req, files, callback) =>{
@@ -14,7 +14,8 @@ const fileFilter = (req, files, callback) =>{
     if(fileType == 'jpg' || fileType == 'jpeg' || fileType == 'png'){
         callback(null, true)
     }else {
-        callback(new Error('이미지 파일만 업로드해주세요.'))
+        // 이미지 파일이 아니라면 ImageFileExtensionError를 던진다.
+        callback(new ImageFileExtensionError())
     }
 }
 
@@ -41,11 +42,11 @@ module.exports.uploadBannerImage = async(req,res) =>{
         await upload(req,res);
             
         const {bannerOrder, isOpened, title} = req.body;
-        const titlePath = req.files['title'][0].filename;
+        const titlePath = req.files['bannerTitle'][0].filename;
         const contentPath = req.files['content'][0].filename;
 
         
-        await imageUtil.resizingImage(req.files['title'][0].path, 'banners', req.files['title'][0].filename);
+        await imageUtil.resizingImage(req.files['bannerTitle'][0].path, 'banners', req.files['bannerTitle'][0].filename);
         await imageUtil.resizingImage(req.files['content'][0].path, 'banners', req.files['content'][0].filename);
 
         await parameter.nullCheck(bannerOrder, isOpened, title, titlePath, contentPath);
@@ -71,7 +72,9 @@ module.exports.uploadBannerImage = async(req,res) =>{
 
     }
     catch(err){
-        console.log(err);
+        if(err instanceof ImageFileExtensionError)
+            return res.status(415).send();
+
         if(err instanceof NullParameterError)
             return res.status(400).send();
 

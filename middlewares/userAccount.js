@@ -23,7 +23,7 @@ module.exports.login = async(req, res)=>{
         ,[email, hashedPassword]);
         if(result.rowCount == 0)       // id, password 쌍이 존재하지 않을 경우
             return res.status(401).send();
-        else if(result.rows[0].is_blocked == true || result.rows[0].is_left == true)  // 차단된 사용자일 경우
+        else if(result.rows[0].is_blocked == true || result.rows[0].is_left == true)  // 차단됐거나 탈퇴한 사용자일 경우
             return res.status(403).send();
         
         const token = await jwtToken.issueToken(result.rows[0].user_id); // 인증된 사용자라면 유저 index값을 넣어 토큰을 만들어준다.
@@ -360,7 +360,7 @@ module.exports.deleteUserInformation = async(req,res) =>{
         await pg.connect();
         await pg.queryUpdate(
             `
-            UPDATE knock.users SET user_status = 'withdrawal' WHERE user_index = $1;
+            UPDATE knock.users SET is_left = true WHERE user_index = $1;
             `
         ,[userId])
         return res.status(200).send();

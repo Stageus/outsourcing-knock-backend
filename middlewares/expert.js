@@ -740,7 +740,7 @@ module.exports.getExpertsList = async(req,res) =>{
         if(err instanceof SqlSyntaxError)
             return res.status(500).send();
 
-        if(err instanceof NullParameterError)
+        if(err instanceof NullParameterEqrror)
             return res.status(400).send();
     }
     finally{
@@ -760,10 +760,10 @@ module.exports.getExpertDetail = async(req, res) =>{
             SELECT expert.expert_index, profile_img_url, name, 
             (SELECT expert_type FROM knock.expert_type INNER JOIN knock.have_expert_type ON have_expert_type.expert_index= $1 AND expert_type.expert_type_index = have_expert_type.expert_type_index),
             (SELECT array_agg(type) FROM knock.counseling_type INNER JOIN knock.expert_counseling_type ON expert_counseling_type.expert_index = $1 AND counseling_type.counseling_type_index = expert_counseling_type.counseling_type_index) AS counseling_type,
-            (SELECT COUNT(*) FROM knock.expert_review AS review WHERE review.expert_index = $1) AS review_count, introduction_title, introduction_contents, (SELECT array_agg(counseling_method) FROM knock.counseling_method_2nd INNER JOIN knock.expert_counseling_method_2nd ON expert_counseling_method_2nd.expert_index = $1 AND expert_counseling_method_2nd.counseling_method_2nd_index = counseling_method_2nd.counseling_method_2nd_index) AS counseling_type, qualification, career, education, monday, tuesday, wednesday, thursday, friday, saturday, sunday  FROM knock.expert INNER JOIN knock.available_counseling_time ON expert.expert_index= $1 AND expert.expert_index = available_counseling_time.expert_index;
+            (SELECT COUNT(*) FROM knock.expert_review AS review WHERE review.expert_index = $1) AS review_count, introduction_title, introduction_contents, (SELECT array_agg(counseling_method) FROM knock.counseling_method_2nd INNER JOIN knock.expert_counseling_method_2nd ON expert_counseling_method_2nd.expert_index = $1 AND expert_counseling_method_2nd.counseling_method_2nd_index = counseling_method_2nd.counseling_method_2nd_index) AS counseling_type, qualification, career, education, Array[monday, tuesday, wednesday, thursday, friday, saturday, sunday] AS counseling_time FROM knock.expert INNER JOIN knock.available_counseling_time ON expert.expert_index= $1 AND expert.expert_index = available_counseling_time.expert_index;
             `
         ,[expertId])
-
+        
         return res.status(200).send(result.rows[0])
     }
     catch(err){
@@ -790,12 +790,12 @@ module.exports.getBestReview = async(req,res) =>{
         await pg.connect();
         const result = await pg.queryExecute(
             `
-            SELECT expert_reviews_index AS review_id, user_index AS user_id, reviews AS review, writed_at,
-            (SELECT counseling_type FROM knock.payment_info WHERE payment_info.payment_info_index = expert_review.payment_info_index)
+            SELECT expert_reviews_index AS review_id, user_index AS user_id, reviews AS review, to_char(writed_at, 'YYYY.MM.DD') AS writed_at,
+            (SELECT counseling_type FROM knock.payment_info WHERE payment_info.payment_key = expert_review.payment_key)
             FROM knock.expert_review
-            WHERE expert_index = $1 AND is_best = true;
+            WHERE expert_index = $1 AND is_best = true AND is_opened = true;
             `
-        [expertId]);
+        ,[expertId]);
      
         return res.status(200).send({
             bestReviewList : result.rows
@@ -823,24 +823,25 @@ module.exports.getReviewList = async(req,res) =>{
     const pageCount = (req.params.pagecount-1) * 15;
 
     try{
-        await parameter.nullCheck(expertId);
+        await parameter.nullCheck(expertId, pageCount);
         await pg.connect();
         const result = await pg.queryExecute(
             `
-            SELECT expert_reviews_index AS review_id, user_index AS user_id, reviews AS review, writed_at,
-            (SELECT counseling_type FROM knock.payment_info WHERE payment_info.payment_info_index = expert_review.payment_info_index)
+            SELECT expert_reviews_index AS review_id, user_index AS user_id, reviews AS review, to_char(writed_at, 'YYYY.MM.DD') AS writed_at,
+            (SELECT counseling_type FROM knock.payment_info WHERE payment_info.payment_key = expert_review.payment_key)
             FROM knock.expert_review 
-            WHERE expert_index = $1 AND is_best = false
-            LIMIT 15 OFFSET $2
-            ORDER BY writed_at;
+            WHERE expert_index = $1 AND is_best = false AND is_opened = true
+            ORDER BY writed_at
+            LIMIT 15 OFFSET $2;
             `
-        [expertId, pageCount]);
+        ,[expertId, pageCount]);
 
         return res.status(200).send({
             reviewList : result.rows
         })
     }
     catch(err){
+        
         if(err instanceof PostgreConnectionError)
         return res.status(500).send();
     
@@ -870,6 +871,3 @@ module.exports.getProfileImage = async(req,res) =>{
         return res.status(500).send();
     }
 }
-
-
-// dev_Lee---end
