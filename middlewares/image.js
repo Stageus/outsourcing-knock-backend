@@ -39,11 +39,10 @@ module.exports.uploadBannerImage = async(req,res) =>{
     try{
         const upload = util.promisify(Multer.fields([{ name: 'bannerTitle', maxCount: 12 }, { name: 'content', maxCount: 12 }]));
         await upload(req,res);
-            
+
         const {bannerOrder, isOpened, title} = req.body;
         const titlePath = req.files['title'][0].filename;
         const contentPath = req.files['content'][0].filename;
-
         
         await imageUtil.resizingImage(req.files['title'][0].path, 'banners', req.files['title'][0].filename);
         await imageUtil.resizingImage(req.files['content'][0].path, 'banners', req.files['content'][0].filename);
@@ -90,3 +89,66 @@ module.exports.uploadBannerImage = async(req,res) =>{
     }   
 }
 
+module.exports.uploadProfileImage = async(req, res) =>{
+    const storage = multer.diskStorage({
+        destination: (req, files, cb) => {
+          cb(null, path.join(__dirname, '../images/expert/profile')) // cb 콜백함수를 통해 전송된 파일 저장 디렉토리 설정
+        },
+        filename: async(req, files, cb) =>{
+            const fileName = await imageUtil.getFileName()+'.' + files.mimetype.split('/')[1];
+          cb(null, fileName) // cb 콜백함수를 통해 전송된 파일 이름 설정
+        }
+      })
+
+    const Multer = multer({
+        storage : storage,
+        limits : 5 * 1024 * 1024,   
+        fileFilter : fileFilter
+    })
+    const pg = new postgres();
+    
+    try{
+        const upload = util.promisify(Multer.fields(
+            [
+                { name: 'profile_img', maxCount: 12 }, 
+                { name: 'id_card_img', maxCount: 12 }, 
+                { name: 'bankbook_img', maxCount: 12},
+                { name: 'education_img', maxCount: 12 },
+                { name: 'career_img', maxCount: 12 },
+            ]
+        ));
+        await upload(req,res);
+            
+        const name = req.body.name;
+        const email = req.body.email;
+        const password = req.body.password;
+        const call = req.body.call;
+        const education = req.body.education;
+        const qualification = req.body.qualification;
+        const career = req.body.career;
+        const expertType = req.body.expertType;
+
+        const profileImgPath = req.files['profile_img'][0].filename;
+        const idCardImgPath = req.files['id_card_img'][0].filename;
+        const bankBookImgPath = req.files['bankbook_img'][0].filename;
+        const educationImgPath = req.files['education_img'][0].filename;
+        const careerImgPath = req.files['career_img'][0].filename;
+
+        await imageUtil.resizingImage(req.files['profile_img'][0].path, 'profile', req.files['profile_img'][0].filename);
+        await imageUtil.resizingImage(req.files['id_card_img'][0].path, 'profile', req.files['id_card_img'][0].filename);
+        await imageUtil.resizingImage(req.files['bankbook_img'][0].path, 'profile', req.files['bankbook_img'][0].filename);
+        await imageUtil.resizingImage(req.files['education_img'][0].path, 'profile', req.files['education_img'][0].filename);
+        await imageUtil.resizingImage(req.files['career_img'][0].path, 'profile', req.files['career_img'][0].filename);
+
+        return {name, email, password, call, education, qualification, career, expertType, profileImgPath, idCardImgPath, bankBookImgPath, educationImgPath, careerImgPath};
+    }
+    catch(err){
+        console.log(err);
+        if(err instanceof NullParameterError)
+            return NullParameterError;
+        if(err instanceof PostgreConnectionError)
+            return PostgreConnectionError;
+        if(err instanceof SqlSyntaxError)
+            return SqlSyntaxError;
+    }
+}

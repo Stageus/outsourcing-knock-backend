@@ -8,6 +8,7 @@ const array2String = require('../utils/array2String');
 const phoneValidation = require('../utils/phoneValidation');
 const fs = require('fs');
 const path = require('path');
+const image = require('../middlewares/image');
 
 //추천 전문가 리스트 가져오기 (3명)
 module.exports.getRecommendedExpertsList = async(req,res) =>{
@@ -211,53 +212,21 @@ module.exports.tokenLogin = async(req,res)=>{
 
 // 전문가 회원가입
 module.exports.createAccount = async(req,res)=>{
-    // expert table
-    const name = req.body.name;
-    const email = req.body.email;
-    const password = req.body.password;
-    const call = req.body.call;
-    const profileImgUrl = req.body.profileImgUrl;
-    const idCardImgUrl = req.body.idCardImgUrl;
-    const bankBookImgUrl = req.body.bankBookImgUrl;
-    const education = req.body.education;
-    const qualification = req.body.qualification;
-    const career = req.body.career;
-    // expert_education_img table
-    const educationImgUrl = req.body.educationImgUrl;
-    // expert_career_img table
-    const careerImgUrl = req.body.careerImgUrl;
-    // expert_type table
-    const expertType = req.body.expertType;
-
     const pg = new postgres();
 
     try{
-        await parameter.nullCheck(email, password);
+        const {name, email, password, call, education, qualification, career, expertType, profileImgPath, idCardImgPath, bankBookImgPath, educationImgPath, careerImgPath} = await image.uploadProfileImage(req, res);
+
+        await parameter.nullCheck(name, email, password, call, expertType, profileImgPath, idCardImgPath, bankBookImgPath);
         const hashedPassword = await hasing.createHashedPassword(password);
         await pg.connect();
         await pg.queryUpdate(`BEGIN;`);
         await pg.queryUpdate(
             `
-            INSERT into knock.expert (expert_status, name, email, password, phone_number, profile_img_url, id_card_img_url, bankbook_copy_img_url, education, qualification, career, created_at)
-	            VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW());
+            INSERT into knock.expert (expert_status, name, email, password, phone_number, profile_img_url, id_card_img_url, bankbook_copy_img_url, education, education_img_url, qualification, career, career_img_url, created_at)
+	            VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW() + '9 hour'::interval);
             `
-        , [name, email, hashedPassword, call, profileImgUrl, idCardImgUrl, bankBookImgUrl, education, qualification, career]);
-        
-        await pg.queryUpdate(
-            `
-            INSERT INTO knock.expert_education_img (expert_index, education_img_url)
-                VALUES(
-                    (SELECT expert_index FROM knock.expert WHERE email = $1), $2);
-            `
-        , [email, educationImgUrl]);
-
-        await pg.queryUpdate(
-            `
-            INSERT INTO knock.expert_career_img (expert_index, career_img_url)
-                VALUES(
-                    (SELECT expert_index FROM knock.expert WHERE email = $1), $2);
-            `
-        , [email, careerImgUrl]);
+        , [name, email, hashedPassword, call, profileImgPath, idCardImgPath, bankBookImgPath, education, educationImgPath, qualification, career, careerImgPath]);
 
         await pg.queryUpdate(
             `
@@ -274,9 +243,9 @@ module.exports.createAccount = async(req,res)=>{
         })
     }
     catch(err){
+        console.log(err);
         await pg.queryUpdate(`ROLLBACK;`);
 
-        console.log(err);
         if(err instanceof NullParameterError)
             return res.status(400).send();
         if(err instanceof PostgreConnectionError)
