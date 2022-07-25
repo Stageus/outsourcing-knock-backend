@@ -47,7 +47,7 @@ module.exports.getChattingList = async(req,res)=>{
         await pg.connect();
         const result = await pg.queryExecute(
             `
-            SELECT chatting_index, sender_index, message, created_at FROM knock.chatting
+            SELECT chatting_index, sender_index, message, created_at, is_alarm FROM knock.chatting
             WHERE room_index = $1;
             `
         , [roomId]);

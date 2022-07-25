@@ -51,8 +51,10 @@ router.route('/banners')
 
 // dev_shin
 router.get('/recommendation-experts', expert.getRecommendedExpertsList);
+router.route('/experts/signin')
+    .post(expert.login)
+    .get(expert.tokenLogin);
 router.post('/experts/signup', expert.createAccount);
-router.post('/experts/signin', expert.login);
 router.route('/experts/:expertId/register')
     .get(expert.getRegisterInfo)
     .post(expert.register);
