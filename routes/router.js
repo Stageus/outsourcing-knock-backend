@@ -13,6 +13,7 @@ const toss = require('../middlewares/toss');
 const admin = require('../middlewares/admin');
 const image = require('../middlewares/image');
 const phone = require('../middlewares/phoneValidation');
+const push = require('../middlewares/push');
 
 //dev_Lee
 router.get('/test/reviews/:pageCount', userAccount.getTestReview);
@@ -69,6 +70,7 @@ router.route('/experts/:expertId/info')
     .post(expert.updateExpertInfo);
 router.get('/phone-validation/:phone', phone.sendCertifiedNumber);
 router.post('/phone-validation/:phone', phone.phoneValidation);
+router.get('/push', push.pushAlarm);
 
 router.get('/experts/test/counseling/:productId/review', testList.getReview);
 

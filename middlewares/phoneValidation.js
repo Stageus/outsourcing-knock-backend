@@ -55,7 +55,7 @@ module.exports.sendCertifiedNumber = async (req, res) => {
     await redis.connect();
     await redis.setCertifiedNumber(phone, certifiedNumber);
 
-    return res.status(200).send("Success");
+    return res.status(200).send();
   } catch (err) {
     if(err instanceof NullParameterError)
         return res.status(400).send();
@@ -70,6 +70,7 @@ module.exports.sendCertifiedNumber = async (req, res) => {
   }
 };
 
+// 휴대폰 인증번호 검증
 module.exports.phoneValidation = async (req, res) => {
   const phone = req.params.phone;
   const certifiedNumber = req.body.certifiedNumber;
