@@ -51,10 +51,8 @@ router.route('/banners')
 
 // dev_shin
 router.get('/recommendation-experts', expert.getRecommendedExpertsList);
-router.route('/experts/signin')
-    .post(expert.login)
-    .get(expert.tokenLogin);
 router.post('/experts/signup', expert.createAccount);
+router.post('/experts/signin', expert.login);
 router.route('/experts/:expertId/register')
     .get(expert.getRegisterInfo)
     .post(expert.register);
@@ -138,14 +136,26 @@ router.get('/experts', jwtToken.verifyAdminToken, admin.getAllExpertList);
 router.get('/users', jwtToken.verifyAdminToken, admin.getAllUserList);
 router.get('/counselings', jwtToken.verifyAdminToken, admin.getAllcounselingList);
 router.get('/tests', jwtToken.verifyAdminToken, admin.getAllTestList);
+router.get('/superadmin-banners/:bannerId', jwtToken.verifyAdminToken, admin.getBannerDetail);
 router.get('/superadmin-banners', jwtToken.verifyAdminToken, admin.getAllBannerList);
 router.get('/superadmin-payment', jwtToken.verifyAdminToken, admin.getAllPaymentList);
 router.route('/superadmin-review/:reviewId')
         .get(jwtToken.verifyAdminToken ,admin.getReviewDetail)
         .put(jwtToken.verifyAdminToken, admin.modifyReview);
 router.get('/superadmin-review', jwtToken.verifyAdminToken, admin.getAllReviewList);
+router.put('/superadmin-coupon/:couponId', jwtToken.verifyAdminToken, admin.modifyCoupon);
+router.get('/superadmin-coupon/:couponId',jwtToken.verifyAdminToken, admin.getCouponDetail);
 router.get('/superadmin-coupon', jwtToken.verifyAdminToken, admin.getAllCouponList);
 router.post('/superadmin-coupon', jwtToken.verifyAdminToken, admin.createNormalCoupon);
+router.post('/superadmin-affiliate/:affiliateId/code', jwtToken.verifyAdminToken,admin.createAffiliateCode);
+router.get('/superadmin-affiliate/:affiliateId/code', jwtToken.verifyAdminToken, admin.getAffiliateCodeList);
+router.get('/superadmin-affiliate/:affiliateId/coupon', jwtToken.verifyAdminToken, admin.getAffiliateCouponList);
+router.post('/superadmin-affiliate/:affiliateId/coupon', jwtToken.verifyAdminToken, admin.createAffiliateCoupon);
+router.get('/superadmin-affiliate/:affiliateId', jwtToken.verifyAdminToken, admin.getAffiliateDetail);
+router.put('/superadmin-affiliate/:affiliateId', jwtToken.verifyAdminToken, admin.modifyAffiliate);
+router.get('/superadmin-affiliate' ,jwtToken.verifyAdminToken, admin.getAffiliateList);
+router.post('/superadmin-affiliate', jwtToken.verifyAdminToken, admin.createAffiliate);
+
 //
 
 module.exports = router;

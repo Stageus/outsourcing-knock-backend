@@ -21,6 +21,7 @@ module.exports.resizingImage = async(oldPath, newPath, filename) =>{
                     fs.writeFile(oldPath, buffer, (err) => {
                         if(!err)
                             fs.rename(oldPath, path.join(__dirname,`../images/${newPath}/${filename}`), (err)=>{
+                                console.log(err);
                         })
                     });
             })

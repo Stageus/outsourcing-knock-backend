@@ -32,19 +32,19 @@ module.exports.uploadBannerImage = async(req,res) =>{
 
     const Multer = multer({
         storage : storage,
-        limits : 5 * 1024 * 1024,   
+        limits : 5 * 1024 * 1024,
         fileFilter : fileFilter
     })
     const pg = new postgres();
-    
-    try{
-        const upload = util.promisify(Multer.fields([{ name: 'bannerTitle', maxCount: 12 }, { name: 'content', maxCount: 12 }]));
-        await upload(req,res);
 
+    try{
+        const upload = util.promisify(Multer.fields([{ name: 'bannerTitle', maxCount: 1 }, { name: 'content', maxCount: 1 }]));
+        await upload(req,res);
+        
         const {bannerOrder, isOpened, title} = req.body;
         const titlePath = req.files['bannerTitle'][0].filename;
         const contentPath = req.files['content'][0].filename;
-        
+
         await imageUtil.resizingImage(req.files['bannerTitle'][0].path, 'banners', req.files['bannerTitle'][0].filename);
         await imageUtil.resizingImage(req.files['content'][0].path, 'banners', req.files['content'][0].filename);
 
@@ -63,7 +63,7 @@ module.exports.uploadBannerImage = async(req,res) =>{
             INSERT INTO knock.banner (title, title_img_url, content_img_url, banner_order, is_opened)
             VALUES ($1, $2, $3, $4, $5);
             `
-            ,[title, titlePath, contentPath, bannerOrder, isOpened])
+            ,[title, '/images/banners/'+titlePath, '/images/banners/'+contentPath, bannerOrder, isOpened])
 
         await pg.queryUpdate('COMMIT;',[]);
 
@@ -71,6 +71,7 @@ module.exports.uploadBannerImage = async(req,res) =>{
 
     }
     catch(err){
+        console.log(err);
         if(err instanceof ImageFileExtensionError)
             return res.status(415).send();
 
@@ -89,7 +90,7 @@ module.exports.uploadBannerImage = async(req,res) =>{
     }
     finally{
         await pg.disconnect();
-    }   
+    }
 }
 
 module.exports.uploadProfileImage = async(req, res) =>{
@@ -105,23 +106,23 @@ module.exports.uploadProfileImage = async(req, res) =>{
 
     const Multer = multer({
         storage : storage,
-        limits : 5 * 1024 * 1024,   
+        limits : 5 * 1024 * 1024,
         fileFilter : fileFilter
     })
     const pg = new postgres();
-    
+
     try{
         const upload = util.promisify(Multer.fields(
             [
-                { name: 'profile_img', maxCount: 12 }, 
-                { name: 'id_card_img', maxCount: 12 }, 
+                { name: 'profile_img', maxCount: 12 },
+                { name: 'id_card_img', maxCount: 12 },
                 { name: 'bankbook_img', maxCount: 12},
                 { name: 'education_img', maxCount: 12 },
                 { name: 'career_img', maxCount: 12 },
             ]
         ));
         await upload(req,res);
-            
+
         const name = req.body.name;
         const email = req.body.email;
         const password = req.body.password;

@@ -636,7 +636,7 @@ module.exports.getAllBannerList = async(req,res) =>{
         await pg.connect();
         const result = await pg.queryExecute(
             `
-            SELECT banner_index AS banner_id, title_img_url, title, banner_order, is_opened, to_char(created_at, 'YYYY.MM.DD')
+            SELECT banner_index AS banner_id, title_img_url, title, banner_order, is_opened, to_char(created_at, 'YYYY.MM.DD') AS created_at
             FROM knock.banner
             ORDER BY created_at;
             `
@@ -644,7 +644,7 @@ module.exports.getAllBannerList = async(req,res) =>{
 
         return res.status(200).send({
             bannerList : result.rows,
-            totalPageCount : result.rowCount
+            totalPageCount : Math.ceil(result.rowCount/10)
         })
         
     }
@@ -652,6 +652,37 @@ module.exports.getAllBannerList = async(req,res) =>{
         if(err instanceof PostgreConnectionError)
             return res.status(500).send();
 
+        if(err instanceof SqlSyntaxError)
+            return res.status(500).send();
+
+        return res.status(500).send();
+    }
+    finally{
+        await pg.disconnect();
+    }
+}
+
+module.exports.getBannerDetail = async(req,res) =>{
+    const pg = new postgres();
+    const bannerId = req.params.bannerId;
+    try{
+        await parameter.nullCheck(bannerId);
+        await pg.connect();
+        const result = await pg.queryExecute(
+            `
+            SELECT banner_index AS banner_id, title_img_url, content_img_url, is_opened, banner_order, title 
+            FROM knock.banner
+            WHERE banner_index = $1;
+            `
+        ,[bannerId]);
+        
+        return res.status(200).send(result.rows[0])
+    }
+    catch(err){
+        if(err instanceof NullParameterError)
+            return res.status(400).send();
+        if(err instanceof PostgreConnectionError)
+            return res.status(500).send();
         if(err instanceof SqlSyntaxError)
             return res.status(500).send();
 
@@ -863,11 +894,11 @@ module.exports.getAllReviewList = async(req,res) =>{
         await pg.connect();
         const result = await pg.queryExecute(
             `
-            SELECT expert_reviews_index AS review_index, 'MHSQ 검사' AS product_name, (SELECT nickname FROM knock.users WHERE user_index = expert_review.user_index), '심리검사' AS product_type, to_char(writed_at, 'YYYY.MM.DD') AS writed_at, is_best, is_opened, gpa
+            SELECT expert_reviews_index AS review_index, 'MHSQ 검사' AS product_name, (SELECT nickname FROM knock.users WHERE user_index = expert_review.user_index), '심리검사' AS product_type, to_char(writed_at, 'YYYY.MM.DD') AS writed_at, is_best, is_opened, CAST(gpa AS numeric(2,1))
             FROM knock.expert_review INNER JOIN knock.test_payment USING(payment_key)
             UNION
             SELECT expert_reviews_index AS review_index, CONCAT((SELECT name FROM knock.expert WHERE expert_index = expert_review.expert_index), ' ', (SELECT expert_type FROM knock.expert_type INNER JOIN knock.have_expert_type ON expert_index = expert_review.expert_index AND have_expert_type.expert_type_index = expert_type.expert_type_index)) AS product_name, (SELECT nickname FROM knock.users WHERE user_index = expert_review.user_index), 
-            CASE WHEN (SELECT expert_type FROM knock.expert_type INNER JOIN knock.have_expert_type ON expert_index = psychology_payment.expert_index AND have_expert_type.expert_type_index = expert_type.expert_type_index) = '정신건강의학과 전문의' THEN '전문가 상담' ELSE '심리상담' END, to_char(writed_at, 'YYYY.MM.DD') AS writed_at, is_best, is_opened, gpa
+            CASE WHEN (SELECT expert_type FROM knock.expert_type INNER JOIN knock.have_expert_type ON expert_index = psychology_payment.expert_index AND have_expert_type.expert_type_index = expert_type.expert_type_index) = '정신건강의학과 전문의' THEN '전문가 상담' ELSE '심리상담' END, to_char(writed_at, 'YYYY.MM.DD') AS writed_at, is_best, is_opened, CAST(gpa AS numeric(2,1))
             FROM knock.expert_review INNER JOIN knock.psychology_payment USING(payment_key)
             ORDER BY writed_at;
             `
@@ -900,11 +931,11 @@ module.exports.getReviewDetail = async(req,res) =>{
         await pg.connect();
         const result = await pg.queryExecute(
             `
-            SELECT expert_reviews_index AS review_index, reviews, 'MHSQ 검사' AS product_name, (SELECT nickname FROM knock.users WHERE user_index = expert_review.user_index), '심리검사' AS product_type, to_char(writed_at, 'YYYY.MM.DD') AS writed_at, is_best, is_opened, gpa
+            SELECT expert_reviews_index AS review_index, reviews, 'MHSQ 검사' AS product_name, (SELECT nickname FROM knock.users WHERE user_index = expert_review.user_index), '심리검사' AS product_type, to_char(writed_at, 'YYYY.MM.DD') AS writed_at, is_best, is_opened, CAST(gpa AS numeric(2,1))
             FROM knock.expert_review INNER JOIN knock.test_payment ON expert_reviews_index = $1 AND expert_review.payment_key = test_payment.payment_key
             UNION
             SELECT expert_reviews_index AS review_index, reviews, CONCAT((SELECT name FROM knock.expert WHERE expert_index = expert_review.expert_index), ' ', (SELECT expert_type FROM knock.expert_type INNER JOIN knock.have_expert_type ON expert_index = expert_review.expert_index AND have_expert_type.expert_type_index = expert_type.expert_type_index)) AS product_name, (SELECT nickname FROM knock.users WHERE user_index = expert_review.user_index), 
-            CASE WHEN (SELECT expert_type FROM knock.expert_type INNER JOIN knock.have_expert_type ON expert_index = psychology_payment.expert_index AND have_expert_type.expert_type_index = expert_type.expert_type_index) = '정신건강의학과 전문의' THEN '전문가 상담' ELSE '심리상담' END, to_char(writed_at, 'YYYY.MM.DD') AS writed_at, is_best, is_opened, gpa
+            CASE WHEN (SELECT expert_type FROM knock.expert_type INNER JOIN knock.have_expert_type ON expert_index = psychology_payment.expert_index AND have_expert_type.expert_type_index = expert_type.expert_type_index) = '정신건강의학과 전문의' THEN '전문가 상담' ELSE '심리상담' END, to_char(writed_at, 'YYYY.MM.DD') AS writed_at, is_best, is_opened, CAST(gpa AS numeric(2,1))
             FROM knock.expert_review INNER JOIN knock.psychology_payment ON expert_reviews_index = $1 AND expert_review.payment_key = psychology_payment.payment_key
             ORDER BY writed_at;
             `
@@ -967,7 +998,7 @@ module.exports.getAllCouponList = async(req,res) =>{
         await pg.connect();
         const result = await pg.queryExecute(
             `
-            SELECT coupon_index AS coupon_id, name, available_count, CONCAT('생성일로부터',available_period,'일') AS available_period, to_char(created_at, 'YYYY.MM.DD HH:MI') AS created_at, active_status FROM knock.coupon;
+            SELECT coupon_index AS coupon_id, name, available_count, CONCAT('생성일로부터 ',available_period,'일') AS available_period, to_char(created_at, 'YYYY.MM.DD HH:MI') AS created_at, active_status FROM knock.coupon;
             `
         ,[])
         return res.status(200).send({
@@ -1085,3 +1116,363 @@ module.exports.createNormalCoupon = async(req,res)=>{
         await pg.disconnect();
     }
 }
+
+module.exports.getCouponDetail = async(req,res) =>{
+    const pg = new postgres();
+    const couponId = req.params.couponId;
+    try{
+        await parameter.nullCheck(couponId);
+        await pg.connect();
+        const result = await pg.queryExecute(
+            `
+            SELECT name, description, discount_amount, available_count, available_period, type, active_status
+            FROM knock.coupon
+            WHERE coupon_index = $1;
+            `
+        ,[couponId]);
+
+        return res.status(200).send( result.rows[0]);
+    }
+    catch(err){
+        console.log(err);
+        if(err instanceof NullParameterError)
+            return res.status(400).send();
+        if(err instanceof PostgreConnectionError)
+            return res.status(500).send();
+        if(err instanceof SqlSyntaxError)
+            return res.status(500).send();
+
+        return res.status(500).send();
+    }
+    finally{
+        await pg.disconnect();
+    }
+}
+
+module.exports.modifyCoupon = async(req,res) =>{
+    const pg = new postgres();
+    const couponId = req.params.couponId;
+    const {activeStatus, name, description} = req.body;
+    try{
+        await parameter.nullCheck(activeStatus, description, name, couponId);
+        await pg.connect();
+        await pg.queryUpdate(
+            `
+            UPDATE knock.coupon SET active_status = $1, name = $2, description =$3
+            WHERE coupon_index = $4;
+            `
+        ,[activeStatus, name, description, couponId]);
+
+        return res.status(200).send();
+    }
+    catch(err){
+        console.log(err);
+        if(err instanceof NullParameterError)
+            return res.status(400).send();
+        if(err instanceof PostgreConnectionError)
+            return res.status(500).send();
+        if(err instanceof SqlSyntaxError)
+            return res.status(500).send();
+
+        return res.status(500).send();
+    }
+    finally{
+        await pg.disconnect();
+    }
+}
+
+module.exports.getAffiliateList = async(req,res)=>{
+    const pg = new postgres();
+
+    try{
+        await pg.connect();
+        const result = await pg.queryExecute(
+            `
+            SELECT affiliate_index AS affiliate_id, company, manager, to_char(created_at, 'YYYY.MM.DD HH:MI') AS created_at, (SELECT COUNT(*) FROM knock.affiliate_code WHERE affiliate_index = affiliate.affiliate_index)
+            FROM knock.affiliate;
+            `
+        ,[])
+        return res.status(200).send({
+            affiliateList : result.rows,
+            totalPageCount : Math.ceil(result.rowCount/10)
+        });
+    }
+    catch(err){
+        if(err instanceof PostgreConnectionError)
+            return res.status(500).send();
+
+        if(err instanceof SqlSyntaxError)
+            return res.status(500).send();
+        
+        return res.status(500).send();
+    }
+    finally{
+        await pg.disconnect();
+    }
+}
+
+module.exports.getAffiliateDetail = async(req,res)=>{
+    const affiliateId = req.params.affiliateId;
+    const pg = new postgres();
+
+    try{
+        await parameter.nullCheck(affiliateId);
+        await pg.connect();
+        const result = await pg.queryExecute(
+            `
+            SELECT affiliate_index AS affiliate_id, company, manager FROM knock.affiliate WHERE affiliate_index = $1 ;
+            `
+        ,[affiliateId])
+        return res.status(200).send(result.rows[0]);
+    }
+    catch(err){
+        
+        if(err instanceof NullParameterError)
+            return res.status(400).send();
+        if(err instanceof PostgreConnectionError)
+            return res.status(500).send();
+
+        if(err instanceof SqlSyntaxError)
+            return res.status(500).send();
+        
+        return res.status(500).send();
+    }
+    finally{
+        await pg.disconnect();
+    }
+}
+
+module.exports.modifyAffiliate = async(req,res)=>{
+    const affiliateId = req.params.affiliateId;
+    const {company, manager} = req.body;
+    const pg = new postgres();
+
+    try{
+        await parameter.nullCheck(affiliateId, company, manager);
+        await pg.connect();
+        await pg.queryUpdate(
+            `
+            UPDATE knock.affiliate SET company = $1 AND manager = $2
+            WHERE affiliate_index = $3;
+            `
+        ,[company, manager, affiliateId])
+        return res.status(200).send();
+    }
+    catch(err){
+        if(err instanceof NullParameterError)
+            return res.status(400).send();
+        if(err instanceof PostgreConnectionError)
+            return res.status(500).send();
+
+        if(err instanceof SqlSyntaxError)
+            return res.status(500).send();
+        
+        return res.status(500).send();
+    }
+    finally{
+        await pg.disconnect();
+    }
+}
+
+module.exports.createAffiliate = async(req,res)=>{
+    const pg = new postgres();
+    const {affiliate, manager} = req.body;
+    try{
+        await parameter.nullCheck(affiliate, manager);
+        await pg.connect();
+        await pg.queryUpdate(
+            `
+            INSERT INTO knock.affiliate VALUES(DEFAULT, $1, $2, NOW());
+            `
+        ,[affiliate, manager]);
+        return res.status(200).send();
+    }
+    catch(err){
+        if(err instanceof NullParameterError)
+            return res.status(400).send();
+            
+        if(err instanceof PostgreConnectionError)
+            return res.status(500).send();
+
+        if(err instanceof SqlSyntaxError)
+            return res.status(500).send();
+        
+        return res.status(500).send();
+    }
+    finally{
+        await pg.disconnect();
+    }
+}
+
+module.exports.createAffiliateCode = async(req,res)=>{
+    const pg = new postgres();
+    const affiliateId = req.params.affiliateId;
+    const {issueCount} = req.body;
+    const queryArray = [];
+    let queryValue = ''
+    try{
+        await parameter.nullCheck(issueCount, affiliateId);
+        for(i=1; i<=issueCount; i++){
+            queryArray.push(affiliateId);
+            queryValue += `($${i}, '${await parameter.getAffiliateCode()}')`
+            if(i != issueCount)
+                queryValue +=', ';
+        }
+        
+        await pg.connect();
+        await pg.queryUpdate(
+            `
+            INSERT INTO knock.affiliate_code (affiliate_index, code) VALUES ${queryValue}
+            `
+        ,queryArray)
+
+        return res.status(200).send();
+    }
+    catch(err){
+        if(err instanceof NullParameterError)
+            return res.status(400).send();
+            
+        if(err instanceof PostgreConnectionError)
+            return res.status(500).send();
+
+        if(err instanceof SqlSyntaxError)
+            return res.status(500).send();
+        
+        return res.status(500).send();
+    }
+    finally{
+        await pg.disconnect();
+    }
+}
+
+module.exports.getAffiliateCodeList = async(req,res)=>{
+    const pg = new postgres();
+    const affiliateId = req.params.affiliateId;
+    try{
+        await parameter.nullCheck(affiliateId);
+        await pg.connect();
+        const result = await pg.queryExecute(
+            `
+            SELECT code FROM knock.affiliate_code WHERE affiliate_index = $1;
+            `
+        ,[affiliateId]);
+
+        return res.status(200).send({
+            affiliateCodeList : result.rows,
+            totalPageCount : Math.ceil(result.rowCount/10)
+        });
+    }
+    catch(err){
+        console.log(err);
+        if(err instanceof NullParameterError)
+            return res.status(400).send();
+            
+        if(err instanceof PostgreConnectionError)
+            return res.status(500).send();
+
+        if(err instanceof SqlSyntaxError)
+            return res.status(500).send();
+        
+        return res.status(500).send();
+    }
+    finally{
+        await pg.disconnect();
+    }
+}
+
+module.exports.getAffiliateCouponList = async(req,res)=>{
+    const pg = new postgres();
+    const affiliateId = req.params.affiliateId;
+    try{
+        await parameter.nullCheck(affiliateId);
+        await pg.connect();
+
+        const result = await pg.queryExecute(
+            `
+            SELECT coupon_index AS coupon_id, name, available_count, CONCAT('생성일로부터 ',available_period,'일') AS available_period, to_char(created_at, 'YYYY.MM.DD HH:MI') AS created_at, active_status
+            FROM knock.coupon
+            WHERE affiliates = (SELECT company FROM knock.affiliate WHERE affiliate_index = $1);
+            `
+        ,[affiliateId])
+
+        return res.status(200).send({
+            affiliateCouponList : result.rows,
+            totalPageCount : Math.ceil(result.rowCount/10)
+        })
+    }
+    catch(err){
+        console.log(err);
+        if(err instanceof NullParameterError)
+            return res.status(400).send();
+        if(err instanceof PostgreConnectionError)
+            return res.status(500).send();
+        if(err instanceof SqlSyntaxError)
+            return res.status(500).send();
+        
+        return res.status(500).send();
+    }
+    finally{
+        await pg.disconnect();
+    }
+}
+
+module.exports.createAffiliateCoupon = async(req,res)=>{
+    const affiliateId = req.params.affiliateId;
+    const {name, description, discount, couponType, availableCount, availablePeriod, canGetOldUserToo} = req.body;
+    const pg = new postgres();
+    try{
+        await parameter.nullCheck(name, description, discount, couponType, availableCount, availablePeriod, canGetOldUserToo, affiliateId);
+        await pg.connect();
+        await pg.queryUpdate('BEGIN;',[]);
+        const result = await pg.queryExecute(
+            `
+            INSERT INTO knock.coupon VALUES (DEFAULT, $1, $2, $3, $4, $5, (SELECT company FROM knock.affiliate WHERE affiliate_index = $6), NOW(), $7, $8)
+            returning coupon_index;
+            `
+        ,[name, couponType, description, availablePeriod, true, affiliateId, availableCount,discount])
+
+        if(canGetOldUserToo){
+            const userinfo = await pg.queryExecute(`SELECT COUNT(*), Array_agg(user_index) AS user_index 
+            FROM knock.users 
+            WHERE is_left = false 
+            AND is_blocked = false 
+            AND affiliate = (SELECT company FROM knock.affiliate WHERE affiliate_index = $1) 
+            ORDER BY user_index`
+            ,[affiliateId]);
+            let userCouponPairIndex = '';
+            
+            for(i=0; i<userinfo.rows[0].count; i++){
+                userCouponPairIndex += `(${userinfo.rows[0].user_index[i]}, ${result.rows[0].coupon_index}, null, DATE_TRUNC('day', NOW()) + INTERVAL '${availablePeriod} day')`
+                if(i != userinfo.rows[0].count-1)
+                    userCouponPairIndex += ", ";
+            }
+
+            for(i=0; i<availableCount; i++){
+                await pg.queryUpdate(
+                    `
+                    INSERT INTO knock.have_coupon VALUES ${userCouponPairIndex}
+                    `
+                ,[]);
+            }
+        }
+
+        await pg.queryUpdate('COMMIT;',[]);
+        return res.status(200).send();
+    }
+    catch(err){
+        console.log(err);
+        if(err instanceof NullParameterError)
+            return res.status(400).send();
+        if(err instanceof PostgreConnectionError)
+            return res.status(500).send();
+        if(err instanceof SqlSyntaxError){
+            await pg.queryUpdate('ROLLBACK;',[]);
+            return res.status(500).send();
+        }
+        return res.status(500).send();
+    }
+    finally{
+        await pg.disconnect();
+    }
+}
+

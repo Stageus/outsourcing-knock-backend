@@ -239,13 +239,14 @@ module.exports.getUserInformation = async(req,res) =>{
         await pg.connect();
         const result = await pg.queryExecute(
             `
-            SELECT id AS email, nickname, email_certification AS is_email_certified, affiliates, is_left, is_blocked FROM knock.users WHERE user_index = $1;
+            SELECT id AS email, nickname, email_certification AS is_email_certified, affiliate, is_left, is_blocked FROM knock.users WHERE user_index = $1;
             `
         ,[userId]);
 
         return res.status(200).send(result.rows[0]);
     }
     catch(err){
+        
         if(err instanceof NullParameterError)
             return res.status(400).send();
         
