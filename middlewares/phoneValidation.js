@@ -8,7 +8,7 @@ const {RedisConnectionError, RedisError, NullParameterError, SqlSyntaxError} = r
 module.exports.sendCertifiedNumber = async (req, res) => {
   const phone = req.params.phone;
   const certifiedNumber = Math.random().toString(10).substring(2, 8);
-  const messageContent = `SMS 인증번호 발송용 테스트 메일입니다.\n 인증번호 : ${certifiedNumber}`;
+  const messageContent = `마음연구소 knock 전문가 휴대폰 인증 메일입니다. \n 인증번호 : ${certifiedNumber}`;
 
   var user_phone_number = phone; //수신 전화번호 기입
   const date = Date.now().toString();
@@ -87,6 +87,7 @@ module.exports.phoneValidation = async (req, res) => {
     }
     else if (certifiedNumber == correctNumber) {
       result.message = "Success";
+      await redis.delete(phone);
       return res.status(200).send(result);
     } 
     else {

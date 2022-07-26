@@ -726,25 +726,6 @@ module.exports.updateExpertInfo = async(req,res)=>{
     }
 }
 
-// (미완) 휴대폰 인증하기
-module.exports.phoneValidation = async(req,res)=>{
-    const expertId = req.params.expertId;
-    const phoneNubmer = req.params.phone;
-
-    try{
-        parameter.nullCheck(phoneNubmer);
-        const resultCode = await phoneValidation.send_message(phoneNubmer, "SMS 인증번호 발송용 테스트 메일입니다.");
-        console.log(resultCode);
-    }
-    catch(err){
-        console.log(err);
-        if(err instanceof NullParameterError)
-            return res.status(400).send();
-    }
-    res.status(200).send();
-}
-
-
 
 //
 
