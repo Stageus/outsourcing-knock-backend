@@ -41,6 +41,7 @@ module.exports.uploadBannerImage = async(req,res) =>{
         const upload = util.promisify(Multer.fields([{ name: 'bannerTitle', maxCount: 12 }, { name: 'content', maxCount: 12 }]));
         await upload(req,res);
 
+        console.log(req.files);
         const {bannerOrder, isOpened, title} = req.body;
         const titlePath = req.files['bannerTitle'][0].filename;
         const contentPath = req.files['content'][0].filename;
@@ -71,6 +72,7 @@ module.exports.uploadBannerImage = async(req,res) =>{
 
     }
     catch(err){
+        console.log(err);
         if(err instanceof ImageFileExtensionError)
             return res.status(415).send();
 
@@ -108,20 +110,19 @@ module.exports.uploadProfileImage = async(req, res) =>{
         limits : 5 * 1024 * 1024,   
         fileFilter : fileFilter
     })
-    const pg = new postgres();
     
     try{
         const upload = util.promisify(Multer.fields(
             [
-                { name: 'profile_img', maxCount: 12 }, 
-                { name: 'id_card_img', maxCount: 12 }, 
-                { name: 'bankbook_img', maxCount: 12},
-                { name: 'education_img', maxCount: 12 },
-                { name: 'career_img', maxCount: 12 },
+                { name: 'profileImg', maxCount: 12 },
+                { name: 'idCardImg', maxCount: 12 },
+                { name: 'bankbookImg', maxCount: 12},
+                { name: 'educationImg', maxCount: 12 },
+                { name: 'careerImg', maxCount: 12 }
             ]
         ));
         await upload(req,res);
-            
+        
         const name = req.body.name;
         const email = req.body.email;
         const password = req.body.password;
@@ -131,17 +132,26 @@ module.exports.uploadProfileImage = async(req, res) =>{
         const career = req.body.career;
         const expertType = req.body.expertType;
 
-        const profileImgPath = req.files['profile_img'][0].filename;
-        const idCardImgPath = req.files['id_card_img'][0].filename;
-        const bankBookImgPath = req.files['bankbook_img'][0].filename;
-        const educationImgPath = req.files['education_img'][0].filename;
-        const careerImgPath = req.files['career_img'][0].filename;
+        const profileImgPath = req.files['profileImg'][0].filename;
+        const idCardImgPath = req.files['idCardImg'][0].filename;
+        const bankBookImgPath = req.files['bankbookImg'][0].filename;
 
-        await imageUtil.resizingImage(req.files['profile_img'][0].path, 'profile', req.files['profile_img'][0].filename);
-        await imageUtil.resizingImage(req.files['id_card_img'][0].path, 'profile', req.files['id_card_img'][0].filename);
-        await imageUtil.resizingImage(req.files['bankbook_img'][0].path, 'profile', req.files['bankbook_img'][0].filename);
-        await imageUtil.resizingImage(req.files['education_img'][0].path, 'profile', req.files['education_img'][0].filename);
-        await imageUtil.resizingImage(req.files['career_img'][0].path, 'profile', req.files['career_img'][0].filename);
+        await imageUtil.resizingImage(req.files['profileImg'][0].path, 'profile', req.files['profileImg'][0].filename);
+        await imageUtil.resizingImage(req.files['idCardImg'][0].path, 'profile', req.files['idCardImg'][0].filename);
+        await imageUtil.resizingImage(req.files['bankbookImg'][0].path, 'profile', req.files['bankbookImg'][0].filename);
+
+        let educationImgPath = null;
+        if(req.files['educationImg'] !== undefined){
+            educationImgPath = req.files['educationImg'][0].filename;
+            
+            await imageUtil.resizingImage(req.files['educationImg'][0].path, 'profile', req.files['educationImg'][0].filename);
+        }
+        let careerImgPath = null;
+        if(req.files['careerImg'] !== undefined){
+            careerImgPath = req.files['careerImg'][0].filename;
+
+            await imageUtil.resizingImage(req.files['careerImg'][0].path, 'profile', req.files['careerImg'][0].filename);
+        }
 
         return {name, email, password, call, education, qualification, career, expertType, profileImgPath, idCardImgPath, bankBookImgPath, educationImgPath, careerImgPath};
     }

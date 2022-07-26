@@ -218,15 +218,27 @@ module.exports.createAccount = async(req,res)=>{
         const {name, email, password, call, education, qualification, career, expertType, profileImgPath, idCardImgPath, bankBookImgPath, educationImgPath, careerImgPath} = await image.uploadProfileImage(req, res);
 
         await parameter.nullCheck(name, email, password, call, expertType, profileImgPath, idCardImgPath, bankBookImgPath);
+        // (INFO) nullable : education, qualification, career, educationImgPath, careerImgPath
+        
         const hashedPassword = await hasing.createHashedPassword(password);
         await pg.connect();
         await pg.queryUpdate(`BEGIN;`);
         await pg.queryUpdate(
             `
-            INSERT into knock.expert (expert_status, name, email, password, phone_number, profile_img_url, id_card_img_url, bankbook_copy_img_url, education, education_img_url, qualification, career, career_img_url, created_at)
-	            VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW() + '9 hour'::interval);
+            INSERT into knock.expert 
+                (expert_status, name, email, password, 
+                    phone_number, profile_img_url, id_card_img_url, bankbook_copy_img_url, 
+                    education, education_img_url, qualification, career, 
+                    career_img_url, created_at)
+	            VALUES('wait', $1, $2, $3, 
+                    $4, $5, $6, $7, 
+                    $8, $9, $10, $11, 
+                    $12, NOW() + '9 hour'::interval);
             `
-        , [name, email, hashedPassword, call, profileImgPath, idCardImgPath, bankBookImgPath, education, educationImgPath, qualification, career, careerImgPath]);
+        , [name, email, hashedPassword, 
+            call, profileImgPath, idCardImgPath, bankBookImgPath, 
+            education, educationImgPath, qualification, career, 
+            careerImgPath]);
 
         await pg.queryUpdate(
             `
