@@ -53,7 +53,7 @@ router.route('/banners')
 router.get('/recommendation-experts', expert.getRecommendedExpertsList);
 router.route('/experts/signin')
     .post(expert.login)
-    .get(expert.tokenLogin);
+    .get(jwtToken.verifyExpertTokenLogin, expert.tokenLogin);
 router.post('/experts/signup', expert.createAccount);
 router.route('/experts/:expertId/register')
     .get(expert.getRegisterInfo)

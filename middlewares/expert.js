@@ -59,7 +59,8 @@ module.exports.login = async(req,res)=>{
                 WHERE email = $1 AND password = $2;
             `
         , [email, hashedPassword]);
-        
+
+        // handle expert_status
         if(result.rowCount == 0){
             return res.status(401).send();
         }
@@ -81,12 +82,6 @@ module.exports.login = async(req,res)=>{
                 rejectmsg : "(반환 사유)", // 반환 사유 table 생성 및 가져오기
             });
         }
-        else if(result.rows[0].expert_status == "block"){
-            return res.status(403).send({
-                msg : "block",
-                rejectmsg : "",
-            });
-        }
 
         let token;
         if(maintain === true){
@@ -96,7 +91,6 @@ module.exports.login = async(req,res)=>{
             token = await jwtToken.issueToken(result.rows[0].expert_index);
         }
 
-        
         if(result.rows[0].expert_status == "accepted"){
             return res.status(200).send({
                 expertId : result.rows[0].expert_index,
@@ -131,7 +125,7 @@ module.exports.login = async(req,res)=>{
 // 전문가 토큰 로그인
 module.exports.tokenLogin = async(req,res)=>{
     const authorization = req.headers.authorization;
-    const expertId = jwtToken.openToken(authorization);
+    const expertId = jwtToken.openToken(authorization).id;
     const pg = new postgres();
 
     try{
@@ -164,32 +158,16 @@ module.exports.tokenLogin = async(req,res)=>{
                 rejectmsg : "(반환 사유)", // 반환 사유 table 생성 및 가져오기
             });
         }
-        else if(result.rows[0].expert_status == "block"){
-            return res.status(403).send({
-                msg : "block",
-                rejectmsg : "",
-            });
-        }
-
-        let token;
-        if(maintain === true){
-            token = await jwtToken.issueToken(result.rows[0].expert_index, "7 days");
-        }
-        else{
-            token = await jwtToken.issueToken(result.rows[0].expert_index);
-        }
 
         if(result.rows[0].expert_status == "accepted"){
             return res.status(200).send({
                 expertId : result.rows[0].expert_index,
-                token : token,
                 msg : "accepted",
                 rejectmsg : "",
             });
         }
         return res.status(200).send({
             expertId : result.rows[0].expert_index,
-            token : token,
             msg : "Success Login",
             rejectmsg : ""
         });
