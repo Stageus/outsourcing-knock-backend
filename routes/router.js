@@ -12,6 +12,7 @@ const calculate = require('../middlewares/calculate');
 const toss = require('../middlewares/toss');
 const admin = require('../middlewares/admin');
 const image = require('../middlewares/image');
+const phone = require('../middlewares/phoneValidation');
 
 //dev_Lee
 router.get('/test/reviews/:pageCount', userAccount.getTestReview);
@@ -66,7 +67,8 @@ router.route('/experts/:expertId/profile')
 router.route('/experts/:expertId/info')
     .get(expert.getExpertInfo)
     .post(expert.updateExpertInfo);
-router.get('/experts/:expertId/phone-validation/:phone', expert.phoneValidation);
+router.get('/phone-validation/:phone', phone.sendCertifiedNumber);
+router.post('/phone-validation/:phone', phone.phoneValidation);
 
 router.get('/experts/test/counseling/:productId/review', testList.getReview);
 

@@ -5,11 +5,12 @@ const {PostgreConnectionError, SqlSyntaxError, NullParameterError, CreatedHashed
 const hasing = require('../utils/password');
 const jwtToken = require('../utils/jwtToken');
 const array2String = require('../utils/array2String');
-const phoneValidation = require('../utils/phoneValidation');
+const phoneValidation = require('./phoneValidation');
 const fs = require('fs');
 const path = require('path');
 const image = require('../middlewares/image');
 const mailer = require('../utils/email');
+const Redis = require('../database/redis');
 
 //추천 전문가 리스트 가져오기 (3명)
 module.exports.getRecommendedExpertsList = async(req,res) =>{
