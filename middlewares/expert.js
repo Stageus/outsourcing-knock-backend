@@ -1,7 +1,7 @@
 const postgres = require('../database/pg');
 const mongodb = require("../database/MongoDB");
 const parameter = require('../utils/parameter');
-const {PostgreConnectionError, SqlSyntaxError, NullParameterError, CreatedHashedPaswordError, TokenIssueError} = require('../errors/error');
+const {PostgreConnectionError, SqlSyntaxError, NullParameterError, CreatedHashedPaswordError, TokenIssueError, SendMailError} = require('../errors/error');
 const hasing = require('../utils/password');
 const jwtToken = require('../utils/jwtToken');
 const array2String = require('../utils/array2String');
@@ -9,6 +9,7 @@ const phoneValidation = require('../utils/phoneValidation');
 const fs = require('fs');
 const path = require('path');
 const image = require('../middlewares/image');
+const mailer = require('../utils/email');
 
 //추천 전문가 리스트 가져오기 (3명)
 module.exports.getRecommendedExpertsList = async(req,res) =>{

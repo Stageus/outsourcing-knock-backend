@@ -58,8 +58,8 @@ router.post('/experts/signup', expert.createAccount);
 router.route('/experts/:expertId/register')
     .get(expert.getRegisterInfo)
     .post(expert.register);
-router.post('/experts/password-reminder', expert.resetPassword);
-router.get('/safety-number/:phone_number', expert.issueSafetyNumber);
+router.post('/experts/:expertId/password-reminder', jwtToken.verifyExpertToken, expert.resetPassword);
+router.get('/experts/:expertId/safety-number/:phone_number', expert.issueSafetyNumber);
 router.route('/experts/:expertId/profile')
     .get(expert.getProfile)
     .post(expert.updateProfile);

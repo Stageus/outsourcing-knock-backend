@@ -30,6 +30,7 @@ module.exports.verifyToken = async(req, res, next) =>{
     }
 };
 
+// use when token login api
 module.exports.verifyExpertTokenLogin = async(req, res, next) =>{
     try{
         const token = tokenUtil.parseToken(req.headers.authorization);
@@ -67,7 +68,7 @@ module.exports.verifyExpertToken = async(req, res, next) =>{
         next();
     }
     catch (err) {
-        
+        console.log(err);
         if(err instanceof NullParameterError)
             return res.status(400).send();
 
