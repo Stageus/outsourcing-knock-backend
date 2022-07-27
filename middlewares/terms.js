@@ -8,7 +8,10 @@ module.exports.getTerms = async(req,res) =>{
         await pg.connect();
         const result = await pg.queryExecute(
             `
-            SELECT terms_of_service_index AS terms_id, title, contents  FROM knock.terms_of_service;
+            SELECT terms_of_service_index AS terms_id, title, contents, is_activated
+            FROM knock.terms_of_service
+            WHERE is_activated = true
+            ORDER BY terms_of_service_index;
             `
         ,[])
 

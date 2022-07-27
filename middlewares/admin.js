@@ -894,10 +894,10 @@ module.exports.getAllReviewList = async(req,res) =>{
         await pg.connect();
         const result = await pg.queryExecute(
             `
-            SELECT expert_reviews_index AS review_index, 'MHSQ 검사' AS product_name, (SELECT nickname FROM knock.users WHERE user_index = expert_review.user_index), '심리검사' AS product_type, to_char(writed_at, 'YYYY.MM.DD') AS writed_at, is_best, is_opened, CAST(gpa AS numeric(2,1))
+            SELECT expert_reviews_index AS review_id, 'MHSQ 검사' AS product_name, (SELECT nickname FROM knock.users WHERE user_index = expert_review.user_index), '심리검사' AS product_type, to_char(writed_at, 'YYYY.MM.DD') AS writed_at, is_best, is_opened, CAST(gpa AS numeric(2,1))
             FROM knock.expert_review INNER JOIN knock.test_payment USING(payment_key)
             UNION
-            SELECT expert_reviews_index AS review_index, CONCAT((SELECT name FROM knock.expert WHERE expert_index = expert_review.expert_index), ' ', (SELECT expert_type FROM knock.expert_type INNER JOIN knock.have_expert_type ON expert_index = expert_review.expert_index AND have_expert_type.expert_type_index = expert_type.expert_type_index)) AS product_name, (SELECT nickname FROM knock.users WHERE user_index = expert_review.user_index), 
+            SELECT expert_reviews_index AS review_id, CONCAT((SELECT name FROM knock.expert WHERE expert_index = expert_review.expert_index), ' ', (SELECT expert_type FROM knock.expert_type INNER JOIN knock.have_expert_type ON expert_index = expert_review.expert_index AND have_expert_type.expert_type_index = expert_type.expert_type_index)) AS product_name, (SELECT nickname FROM knock.users WHERE user_index = expert_review.user_index), 
             CASE WHEN (SELECT expert_type FROM knock.expert_type INNER JOIN knock.have_expert_type ON expert_index = psychology_payment.expert_index AND have_expert_type.expert_type_index = expert_type.expert_type_index) = '정신건강의학과 전문의' THEN '전문가 상담' ELSE '심리상담' END, to_char(writed_at, 'YYYY.MM.DD') AS writed_at, is_best, is_opened, CAST(gpa AS numeric(2,1))
             FROM knock.expert_review INNER JOIN knock.psychology_payment USING(payment_key)
             ORDER BY writed_at;
@@ -931,17 +931,17 @@ module.exports.getReviewDetail = async(req,res) =>{
         await pg.connect();
         const result = await pg.queryExecute(
             `
-            SELECT expert_reviews_index AS review_index, reviews, 'MHSQ 검사' AS product_name, (SELECT nickname FROM knock.users WHERE user_index = expert_review.user_index), '심리검사' AS product_type, to_char(writed_at, 'YYYY.MM.DD') AS writed_at, is_best, is_opened, CAST(gpa AS numeric(2,1))
+            SELECT expert_reviews_index AS review_id, reviews, 'MHSQ 검사' AS product_name, (SELECT nickname FROM knock.users WHERE user_index = expert_review.user_index), '심리검사' AS product_type, to_char(writed_at, 'YYYY.MM.DD') AS writed_at, is_best, is_opened, CAST(gpa AS numeric(2,1))
             FROM knock.expert_review INNER JOIN knock.test_payment ON expert_reviews_index = $1 AND expert_review.payment_key = test_payment.payment_key
             UNION
-            SELECT expert_reviews_index AS review_index, reviews, CONCAT((SELECT name FROM knock.expert WHERE expert_index = expert_review.expert_index), ' ', (SELECT expert_type FROM knock.expert_type INNER JOIN knock.have_expert_type ON expert_index = expert_review.expert_index AND have_expert_type.expert_type_index = expert_type.expert_type_index)) AS product_name, (SELECT nickname FROM knock.users WHERE user_index = expert_review.user_index), 
+            SELECT expert_reviews_index AS review_id, reviews, CONCAT((SELECT name FROM knock.expert WHERE expert_index = expert_review.expert_index), ' ', (SELECT expert_type FROM knock.expert_type INNER JOIN knock.have_expert_type ON expert_index = expert_review.expert_index AND have_expert_type.expert_type_index = expert_type.expert_type_index)) AS product_name, (SELECT nickname FROM knock.users WHERE user_index = expert_review.user_index), 
             CASE WHEN (SELECT expert_type FROM knock.expert_type INNER JOIN knock.have_expert_type ON expert_index = psychology_payment.expert_index AND have_expert_type.expert_type_index = expert_type.expert_type_index) = '정신건강의학과 전문의' THEN '전문가 상담' ELSE '심리상담' END, to_char(writed_at, 'YYYY.MM.DD') AS writed_at, is_best, is_opened, CAST(gpa AS numeric(2,1))
             FROM knock.expert_review INNER JOIN knock.psychology_payment ON expert_reviews_index = $1 AND expert_review.payment_key = psychology_payment.payment_key
             ORDER BY writed_at;
             `
         ,[reviewId]);
 
-        return res.status(200).send(result.rows)
+        return res.status(200).send(result.rows[0])
     }
     catch(err){
 
@@ -1248,17 +1248,19 @@ module.exports.modifyAffiliate = async(req,res)=>{
     const pg = new postgres();
 
     try{
+        
         await parameter.nullCheck(affiliateId, company, manager);
         await pg.connect();
         await pg.queryUpdate(
             `
-            UPDATE knock.affiliate SET company = $1 AND manager = $2
+            UPDATE knock.affiliate SET company = $1, manager = $2
             WHERE affiliate_index = $3;
             `
         ,[company, manager, affiliateId])
         return res.status(200).send();
     }
     catch(err){
+        console.log(err);
         if(err instanceof NullParameterError)
             return res.status(400).send();
         if(err instanceof PostgreConnectionError)
@@ -1469,6 +1471,60 @@ module.exports.createAffiliateCoupon = async(req,res)=>{
             await pg.queryUpdate('ROLLBACK;',[]);
             return res.status(500).send();
         }
+        return res.status(500).send();
+    }
+    finally{
+        await pg.disconnect();
+    }
+}
+
+module.exports.modifyTerms = async(req,res) =>{
+    const pg = new postgres();
+    const newestList = req.body.newestList || [];
+    const previousList = req.body.previousList || [];
+    let insertValue = '';
+    let updateValue = '';
+    
+    try{
+        await pg.connect();
+        await pg.queryUpdate('BEGIN;',[]);
+
+        if(newestList.length != 0){
+            newestList.forEach((elem, idx) => {
+                insertValue += `('${elem.title}', ('${elem.contents}'), ${elem.is_activated})`
+                if(idx != newestList.length-1)
+                    insertValue +=', ';
+            });
+            await pg.queryUpdate(
+                `
+                INSERT INTO knock.terms_of_service (title, contents, is_activated) VALUES ${insertValue};
+                `
+            ,[])
+        }
+    
+        if(previousList.length != 0){
+            previousList.forEach(elem => {
+                updateValue += `UPDATE knock.terms_of_service SET title = '${elem.title}', contents = '${elem.contents}', is_activated = ${elem.is_activated} WHERE terms_of_service_index = ${elem.terms_id};`
+            });
+
+            await pg.queryUpdate(
+                `
+                ${updateValue}
+                `
+            ,[])
+        }
+        await pg.queryUpdate('COMMIT;',[]);
+        return res.status(200).send();
+    }
+    catch(err){
+        
+        if(err instanceof PostgreConnectionError)
+            return res.status(500).send();
+        if(err instanceof SqlSyntaxError){
+            await pg.queryUpdate('ROLLBACK',[]);
+            return res.status(500).send();
+        }
+        
         return res.status(500).send();
     }
     finally{

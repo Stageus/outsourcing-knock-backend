@@ -14,11 +14,14 @@ const admin = require('../middlewares/admin');
 const image = require('../middlewares/image');
 
 //dev_Lee
+router.post('/users/:userId/affiliate', userAccount.authenticateAffiliate);
 router.get('/test/reviews/:pageCount', userAccount.getTestReview);
 router.get('/users/:userid/service-usage-histories', jwtToken.verifyToken, userAccount.getServiceUsageHistories);
 router.get('/users/:userid/reviews/:reviewid', jwtToken.verifyAdminToken, admin.getUserReview);
 router.delete('/users/:userid/reviews',jwtToken.verifyAdminToken, admin.deleteUserReview);
 router.get('/users/:userid/reviews', jwtToken.verifyAdminToken, admin.getUserReviewList);
+router.get('/users/:userId/coupons/:productType', userAccount.getAvailableCouponList);
+router.get('/users/:userId/coupons', jwtToken.verifyToken, userAccount.getCouponList);
 router.head('/users/:email', admin.checkDuplicatedEmail);
 //dev_Lee
 router.route('/users/:userid/email-authentication')
@@ -30,7 +33,8 @@ router.route('/users/:userid/favorites')
     //
     .post(jwtToken.verifyToken, userAccount.addFavoriteExpert)
     .delete(jwtToken.verifyToken, userAccount.deleteFavoriteExpert);
-router.get('/users/:userid/alarms', jwtToken.verifyToken, userAccount.getAlarmList);
+router.get('/users/:userid/alarms/:pageCount', jwtToken.verifyToken, userAccount.getAlarmList);
+router.head('/users/:userid/alarms', userAccount.isThereUnconfirmedAlarm);
 router.route('/users/:userid')
     .get(jwtToken.verifyToken, userAccount.getUserInformation)
     .put(jwtToken.verifyToken, userAccount.modifyUserInformation)
@@ -42,7 +46,8 @@ router.post('/password-reminder', userAccount.resetPassword);
 
 router.route('/terms')
     .get(terms.getTerms)
-    .post(terms.agreeTerms);
+    .post(terms.agreeTerms)
+    .put(admin.modifyTerms);
 
 router.get('/banners/:bannerid', banner.getBannerDetail);
 router.route('/banners')
@@ -155,7 +160,9 @@ router.get('/superadmin-affiliate/:affiliateId', jwtToken.verifyAdminToken, admi
 router.put('/superadmin-affiliate/:affiliateId', jwtToken.verifyAdminToken, admin.modifyAffiliate);
 router.get('/superadmin-affiliate' ,jwtToken.verifyAdminToken, admin.getAffiliateList);
 router.post('/superadmin-affiliate', jwtToken.verifyAdminToken, admin.createAffiliate);
-
+router.post('/review', jwtToken.verifyToken, userAccount.createReview);
+router.head('/affiliate/:code', userAccount.isVaildAffiliateCode);
+router.post('/payments/:paymentKey/pre-question-answer', userAccount.answerPreQuestion);
 //
 
 module.exports = router;

@@ -722,10 +722,12 @@ module.exports.getExpertsList = async(req,res) =>{
             (SELECT expert_type AS expert_type FROM knock.have_expert_type INNER JOIN knock.expert_type ON have_expert_type.expert_index = expert.expert_index AND have_expert_type.expert_type_index = expert_type.expert_type_index),
             (SELECT array_agg(type) FROM knock.counseling_type INNER JOIN knock.expert_counseling_type ON counseling_type.counseling_type_index = expert_counseling_type.counseling_type_index WHERE expert_counseling_type.expert_index = expert.expert_index) AS type
             FROM knock.expert 
-            WHERE expert_index IN (SELECT expert_index FROM knock.counseling_method_1st INNER JOIN knock.expert_counseling_method_1st ON expert_counseling_method_1st.counseling_method_1st_index = counseling_method_1st.counseling_method_1st_index WHERE counseling_method = $1)
-            AND expert_index IN (SELECT expert_index FROM knock.counseling_method_2nd INNER JOIN knock.expert_counseling_method_2nd ON expert_counseling_method_2nd.counseling_method_2nd_index = counseling_method_2nd.counseling_method_2nd_index WHERE counseling_method = $2)
-            AND expert_index IN (SELECT expert_index FROM knock.counseling_method_3rd INNER JOIN knock.expert_counseling_method_3rd ON expert_counseling_method_3rd.counseling_method_3rd_index = counseling_method_3rd.counseling_method_3rd_index WHERE counseling_method = $3)
-            LIMIT 30 OFFSET $4
+            WHERE expert_index IN (SELECT expert_index FROM knock.counseling_method_1st INNER JOIN knock.expert_counseling_method_1st ON counseling_method = $1 AND expert_counseling_method_1st.counseling_method_1st_index = counseling_method_1st.counseling_method_1st_index )
+            AND expert_index IN (SELECT expert_index FROM knock.counseling_method_2nd INNER JOIN knock.expert_counseling_method_2nd ON counseling_method = $2 AND expert_counseling_method_2nd.counseling_method_2nd_index = counseling_method_2nd.counseling_method_2nd_index)
+            AND expert_index IN (SELECT expert_index FROM knock.counseling_method_3rd INNER JOIN knock.expert_counseling_method_3rd ON counseling_method = $3 AND expert_counseling_method_3rd.counseling_method_3rd_index = counseling_method_3rd.counseling_method_3rd_index)
+            AND is_inactivated = false AND is_blocked = false AND expert_status = '승인'
+            ORDER BY expert_index
+            LIMIT 20 OFFSET $4
             `
         ,[firstCategory, secondCategory, thirdCategory, pageCount])
 
@@ -832,7 +834,7 @@ module.exports.getReviewList = async(req,res) =>{
             FROM knock.expert_review 
             WHERE expert_index = $1 AND is_best = false AND is_opened = true
             ORDER BY writed_at
-            LIMIT 15 OFFSET $2;
+            LIMIT 20 OFFSET $2;
             `
         ,[expertId, pageCount]);
 

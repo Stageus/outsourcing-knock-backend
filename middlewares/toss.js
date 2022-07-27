@@ -7,12 +7,12 @@ const axios = require('axios');
 
 // 카드결제 불러오기
 module.exports.getPaymentForm = async(req,res) =>{
-    const originalAmount = req.body.originalAmount||1;
-    const paymentAmount = req.body.paymentAmount||1;
+    const originalAmount = req.body.originalAmount||1000;
+    const paymentAmount = req.body.paymentAmount||1000;
     const productName = req.body.productName ||"음성상담 1회권";
     const productType = req.body.productType ||"검사";
     const userId = req.body.userId || 2;
-    const method = req.body.method || "가상계좌";
+    const method = req.body.method || "카드";
     const couponid = req.body.couponId;
     const expertId= req.body.expertId || 2;
     const date = dateUtil.getDate();
@@ -107,7 +107,7 @@ module.exports.approvalCardPayment = async(req,res)=>{
     
     const redis = new Redis();
     const pg = new postgres();
-
+    
     try{
         await redis.connect();
         await pg.connect();
@@ -115,7 +115,7 @@ module.exports.approvalCardPayment = async(req,res)=>{
         await redis.delete(orderId);
         if(price != savedPrice)
             return res.status(400).send("실제 결제 해야할 금액과 결제할 금액이 다릅니다.");
-
+            
         result = await axios.post('https://api.tosspayments.com/v1/payments/confirm', {
             paymentKey: paymentKey,
             amount: price,
