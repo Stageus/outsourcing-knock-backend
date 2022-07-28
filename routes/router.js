@@ -76,8 +76,7 @@ router.get('/push/:userid', push.getToken);
 
 router.get('/experts/test/counseling/:productId/review', testList.getReview);
 
-router.get('/experts/counseling/count', counselingList.getTotalCounseling);
-router.get('/experts/:expertId/counseling/:searchType/:description/:progress/:counselingType/:startDate/:endDate/:pagecount', counselingList.getCounselingList);
+router.get('/experts/:expertId/counseling/:searchType/:description/:progress/:counselingType/:startDate/:endDate', counselingList.getCounselingList);
 router.get('/experts/counseling/:productId', counselingList.getCounseling);
 router.post('/experts/:expertId/counseling/:productId', counselingList.updateCounseling);
 router.get('/experts/counseling/:productId/prequestion', counselingList.getPrequestion);
@@ -89,11 +88,10 @@ router.post('/experts/counseling/:productId/end', counselingList.endCounseling);
 router.post('/experts/counseling/:productId/cancel', counselingList.cancelCounseling);
 
 
-router.get('/experts/test/allot/count', testList.getAllocationListCount);
+router.get('/experts/test/allot', testList.getAllocationList);
 router.get('/experts/test/allot/:productIndex/view-result', testList.viewResult);
 router.post('/experts/:expertId/test/allocate', testList.allot);
-router.get('/experts/test/counseling/count', testList.getCounselingCount);
-router.get('/experts/:expertId/test/counseling/:searchType/:description/:progress/:cancelStatus/:startDate/:endDate/:pagecount', testList.getCounselingList);
+router.get('/experts/:expertId/test/counseling/:searchType/:description/:progress/:cancelStatus/:startDate/:endDate', testList.getCounselingList);
 router.post('/experts/test/counseling/:productId/result-open', testList.openCounselingResult);
 router.route('/experts/test/counseling/:productId')
     .get(testList.getCounseling)

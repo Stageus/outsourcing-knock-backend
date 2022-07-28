@@ -3,33 +3,6 @@ const mongodb = require("../database/MongoDB");
 const parameter = require('../utils/parameter');
 const {PostgreConnectionError, SqlSyntaxError, NullParameterError, CreatedHashedPaswordError} = require('../errors/error');
 
-// 상담목록 전체개수 
-module.exports.getTotalCounseling = async(req,res)=>{
-    const pg = new postgres();
-
-    try{
-        await pg.connect();
-        const result = await pg.queryExecute(
-            `
-            SELECT COUNT(*) FROM knock.psychology_payment;
-            `
-        , []);
-
-        res.status(200).send(result.rows[0]);
-    }
-    catch(err){
-        if(err instanceof NullParameterError)
-            return res.status(400).send();
-        if(err instanceof PostgreConnectionError)
-            return res.status(500).send();
-        if(err instanceof SqlSyntaxError)
-            return res.status(409).send(); 
-    }
-    finally{
-        await pg.disconnect();
-    }
-}
-
 // 상담 목록 가져오기
 module.exports.getCounselingList = async(req,res)=>{
     const pg = new postgres();
@@ -39,9 +12,7 @@ module.exports.getCounselingList = async(req,res)=>{
     const progress = req.params.progress;
     const counselingType = req.params.counselingType;
     const startDate = req.params.startDate;
-    const endDate = req.params.endDate;
-    const pageCount = req.params.pagecount;
-    const pagePerRow = 5; // 페이지당 row 개수
+    const endDate = req.params.endDate; 
 
     // make where clause
     let whereClause = ``;
@@ -84,7 +55,14 @@ module.exports.getCounselingList = async(req,res)=>{
             JOIN knock.users AS U ON PP.user_index = U.user_index
             JOIN knock.payment_info AS PI ON PP.payment_key = PI.payment_key
             ${whereClause} 
-            OFFSET ${pagePerRow * (pageCount-1)} LIMIT ${pagePerRow * pageCount};
+            `
+        );
+
+        const count = await pg.queryExecute(
+            `
+            SELECT CEIL(COUNT(*) / 10.0)
+            FROM knock.psychology_payment
+            ${whereClause}
             `
         );
 
@@ -94,7 +72,8 @@ module.exports.getCounselingList = async(req,res)=>{
         }
 
         return res.status(200).send({
-            counseling : result.rows
+            counselingList : result.rows,
+            pageCount : count.rowCount,
         });
     }
     catch(err){
