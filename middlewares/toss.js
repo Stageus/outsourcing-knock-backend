@@ -10,7 +10,7 @@ module.exports.getPaymentForm = async(req,res) =>{
     const originalAmount = req.body.originalAmount||1000;
     const paymentAmount = req.body.paymentAmount||1000;
     const productName = req.body.productName ||"음성상담 1회권";
-    const productType = req.body.productType ||"검사";
+    const productType = req.body.productType ||"음성";
     const userId = req.body.userId || 2;
     const method = req.body.method || "카드";
     const couponid = req.body.couponId;
@@ -61,14 +61,18 @@ module.exports.getPaymentForm = async(req,res) =>{
                 </script>
             </body>
             <script>
-            window.onload = tossPayments.requestPayment('${method}', {
-                amount: ${paymentAmount},
-                orderId: '${productTag}${date}${productSequence.toString().padStart(5,'0')}',
-                orderName: '${productName}',
-                customerName: '${''}',
-                successUrl: 'http://54.180.79.110:4000/payment-success?couponid=${couponid}&userid=${userId}&expertid=${expertId}&productName=${productName}&productType=${productType}',
-                failUrl: 'http://54.180.79.110:4000/fail',
-            })
+                tossPayments.requestPayment('${method}', {
+                    amount: ${paymentAmount},
+                    orderId: '${productTag}${date}${productSequence.toString().padStart(5,'0')}',
+                    orderName: '${productName}',
+                    customerName: '${''}',
+                    successUrl: 'http://54.180.79.110:4000/payment-success?couponid=${couponid}&userid=${userId}&expertid=${expertId}&productName=${productName}&productType=${productType}&originalAmount=${originalAmount}',
+                    failUrl: 'http://54.180.79.110:4000/payment-form',
+                })
+                .catch((err) =>{
+                    window.location.reload(false);
+                })
+
             </script>
             `);
         res.end();
@@ -98,6 +102,7 @@ module.exports.approvalCardPayment = async(req,res)=>{
     const userId = req.query.userid;
     const expertId = req.query.expertid;
     const productName = req.query.productName
+    const originalAmount = req.query.originalAmount;
     let counseling_type = req.query.productType;
 
     if(counseling_type =="검사")
@@ -136,10 +141,10 @@ module.exports.approvalCardPayment = async(req,res)=>{
                     
                     await pg.queryUpdate(
                         `
-                        INSERT INTO knock.payment_info (payment_key, user_index, order_id, status, price, payment_method, payment_date, counseling_type, product_name, counseling_status)
-                        VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10);
+                        INSERT INTO knock.payment_info (payment_key, user_index, order_id, status, price, payment_method, payment_date, counseling_type, product_name, counseling_status, original_price)
+                        VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11);
                         `
-                    ,[result.data.paymentKey, userId, result.data.orderId, result.data.status, result.data.totalAmount, result.data.method, result.data.approvedAt, counseling_type, productName, '검사대기']);
+                    ,[result.data.paymentKey, userId, result.data.orderId, result.data.status, result.data.totalAmount, result.data.method, result.data.approvedAt, counseling_type, productName, '검사대기', originalAmount]);
 
                     await pg.queryUpdate(
                         `
@@ -152,10 +157,10 @@ module.exports.approvalCardPayment = async(req,res)=>{
 
                     await pg.queryUpdate(
                         `
-                        INSERT INTO knock.payment_info (payment_key, user_index, order_id, status, price, payment_method, payment_date, counseling_type, product_name, counseling_status)
-                        VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10);
+                        INSERT INTO knock.payment_info (payment_key, user_index, order_id, status, price, payment_method, payment_date, counseling_type, product_name, counseling_status, original_price)
+                        VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11);
                         `
-                    ,[result.data.paymentKey, userId, result.data.orderId, result.data.status, result.data.totalAmount, result.data.method, result.data.approvedAt, counseling_type, productName, '일정조율']);
+                    ,[result.data.paymentKey, userId, result.data.orderId, result.data.status, result.data.totalAmount, result.data.method, result.data.approvedAt, counseling_type, productName, '일정조율', originalAmount]);
 
                     await pg.queryUpdate(
                         `

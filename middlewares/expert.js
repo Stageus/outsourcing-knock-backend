@@ -710,7 +710,7 @@ module.exports.getExpertsList = async(req,res) =>{
     const firstCategory = req.params.firstcategory;
     const secondCategory = req.params.secondcategory;
     const thirdCategory = req.params.thirdcategory;
-    const pageCount = (req.params.pagecount-1) * 30;
+    const pageCount = (req.params.pagecount-1) * 20;
 
     try{
         await parameter.nullCheck(firstCategory, secondCategory, thirdCategory, pageCount);

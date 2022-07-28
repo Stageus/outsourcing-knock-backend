@@ -14,6 +14,8 @@ const admin = require('../middlewares/admin');
 const image = require('../middlewares/image');
 
 //dev_Lee
+router.get('/superadmin-payment/:paymentKey',jwtToken.verifyAdminToken, admin.getPaymentDetail);
+router.delete('/superadmin-payment/:paymentKey', admin.cancelPayment);
 router.post('/users/:userId/affiliate', userAccount.authenticateAffiliate);
 router.get('/test/reviews/:pageCount', userAccount.getTestReview);
 router.get('/users/:userid/service-usage-histories', jwtToken.verifyToken, userAccount.getServiceUsageHistories);
@@ -121,7 +123,7 @@ router.get('/experts/:expertid/best-reviews', expert.getBestReview);
 router.get('/experts/:expertid', expert.getExpertDetail);
 router.post('/kakao', userAccount.kakaoLogin);
 router.post('/google', userAccount.googleLogin);
-router.post('/payment-form',toss.getPaymentForm);
+router.get('/payment-form',toss.getPaymentForm);
 router.get('/payment-success',toss.approvalCardPayment);
 router.post('/webhook',toss.getWebhook);
 router.get('/images/banners/:fileName', banner.getBannerimage);
