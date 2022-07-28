@@ -70,7 +70,9 @@ router.route('/experts/:expertId/info')
     .post(expert.updateExpertInfo);
 router.get('/phone-validation/:phone', phone.sendCertifiedNumber);
 router.post('/phone-validation/:phone', phone.phoneValidation);
-router.get('/push', push.pushAlarm);
+router.post('/push/:userid', push.pushAlarm);
+router.put('/push/:userid', push.registerDeviceToken);
+router.get('/push/:userid', push.getToken);
 
 router.get('/experts/test/counseling/:productId/review', testList.getReview);
 
@@ -88,7 +90,6 @@ router.post('/experts/counseling/:productId/cancel', counselingList.cancelCounse
 
 
 router.get('/experts/test/allot/count', testList.getAllocationListCount);
-router.get('/experts/test/allot/:pagecount', testList.getAllocationList);
 router.get('/experts/test/allot/:productIndex/view-result', testList.viewResult);
 router.post('/experts/:expertId/test/allocate', testList.allot);
 router.get('/experts/test/counseling/count', testList.getCounselingCount);

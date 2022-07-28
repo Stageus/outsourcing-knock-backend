@@ -12,7 +12,7 @@ module.exports.sendCertifiedNumber = async (req, res) => {
 
   var user_phone_number = phone; //수신 전화번호 기입
   const date = Date.now().toString();
-  const uri = process.env.NCP_SERVICE_ID; //서비스 ID
+  const uri = process.env.NCP_SMS_SERVICE_ID; //서비스 ID
   const secretKey = process.env.NCP_SECRET_KEY; // Secret Key
   const accessKey = process.env.NCP_KEY; //Access Key
   const method = "POST";
