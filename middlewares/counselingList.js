@@ -316,11 +316,12 @@ module.exports.updateCounseling = async(req,res)=>{
                     (SELECT user_index from knock.payment_info WHERE payment_key = (SELECT payment_key FROM product_id)), 
                     (SELECT payment_key FROM product_id), 
                     false,
+                    '🔔상담이 종료되었습니다.',
                     (SELECT CONCAT( 
                         (SELECT nickname FROM user_name),
                         '님, 상담은 만족스러우셨나요? 더 좋은 서비스를 만들 수 있도록 소중한 후기를 남겨주세요.'
                     )),
-                    '상담 일정변경은 상담 당일 이전까지 변경 가능합니다.', NOW()
+                     NOW()
                 )
                 RETURNING title, content;
                 `
@@ -348,10 +349,10 @@ module.exports.updateCounseling = async(req,res)=>{
                 VALUES(
                     (SELECT room_index FROM room_info),
                     (SELECT expert_index FROM psychology_info),
-                    CONCAT($2, '/', $3), NOW(), true
+                    '🔔상담이 종료되었습니다. 6시간 후 채팅이 비활성화됩니다.', NOW(), true
                 )
                 `
-            , [productId, result.rows[0].title, result.rows[0].content]);
+            , [productId]);
 
             // TODO: push 알림 보내기
         }
@@ -744,11 +745,12 @@ module.exports.endCounseling = async(req,res)=>{
                 (SELECT user_index from knock.payment_info WHERE payment_key = (SELECT payment_key FROM product_id)), 
                 (SELECT payment_key FROM product_id), 
                 false,
+                '🔔상담이 종료되었습니다.',
                 (SELECT CONCAT( 
                     (SELECT nickname FROM user_name),
                     '님, 상담은 만족스러우셨나요? 더 좋은 서비스를 만들 수 있도록 소중한 후기를 남겨주세요.'
                 )),
-                '상담 일정변경은 상담 당일 이전까지 변경 가능합니다.', NOW()
+                 NOW()
             )
             RETURNING title, content;
             `
@@ -776,10 +778,10 @@ module.exports.endCounseling = async(req,res)=>{
             VALUES(
                 (SELECT room_index FROM room_info),
                 (SELECT expert_index FROM psychology_info),
-                CONCAT($2, '/', $3), NOW(), true
+                '🔔상담이 종료되었습니다. 6시간 후 채팅이 비활성화됩니다.', NOW(), true
             )
             `
-        , [productId, result.rows[0].title, result.rows[0].content]);
+        , [productId]);
 
         // TODO: push 알림 보내기
 
