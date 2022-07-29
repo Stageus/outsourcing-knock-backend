@@ -122,7 +122,6 @@ module.exports.resetPassword = async(req,res) =>{
     }
 }
 
-
 module.exports.getAlarmList = async(req,res) =>{
     const userId = req.params.userid;
     const pageCount = (req.params.pageCount-1) * 20;
@@ -917,7 +916,7 @@ module.exports.getPaymentDetail = async(req,res) =>{
         await pg.connect();
         const result = await pg.queryExecute(
             `
-            SELECT payment_key, to_char(payment_date, 'YYYY.DD.MM. HH:MI') AS payment_date,
+            SELECT payment_key, to_char(payment_date, 'YYYY.DD.MM. HH24:MI') AS payment_date,
             CASE WHEN status = 'DONE' THEN '결제완료' ELSE '결제취소' END AS payment_status,
             order_id, original_price, payment_method, COALESCE((SELECT discount_amount FROM knock.have_coupon INNER JOIN knock.coupon ON payment_key = $1 AND coupon.coupon_index = have_coupon.coupon_index), '0') AS discount_amount
             FROM knock.payment_info;
@@ -950,6 +949,77 @@ module.exports.getPaymentDetail = async(req,res) =>{
         if(err instanceof SqlSyntaxError)
             return res.status(500).send();
 
+        return res.status(500).send();
+    }
+    finally{
+        await pg.disconnect();
+    }
+}
+// 여기서부터 다시 코딩하면 됨
+module.exports.cancelPayment = async(req,res) =>{
+    const pg = new postgres();
+    const paymentKey = req.params.paymentKey;
+    const reqBody = {
+        cancelReason : "단순 변심"
+    }
+    try{
+        await parameter.nullCheck(paymentKey);
+        await pg.connect();
+        const checkValidRefund = await pg.queryExecute(
+            `
+            SELECT counseling_start_time, price, to_char(expiration_date, 'YYYY.MM.DD') FROM knock.payment_info 
+            INNER JOIN (SELECT test_payment.payment_key, expiration_date, counseling_start_time 
+                        FROM knock.test_payment 
+                        LEFT JOIN knock.allotted_test 
+                        ON allotted_test.payment_key = $1 AND test_payment.payment_key = allotted_test.payment_key) AS test
+            ON payment_info.payment_key = $1 AND test.payment_key = payment_info.payment_key
+            UNION
+            SELECT counseling_start_time, price, null FROM knock.payment_info
+            INNER JOIN knock.psychology_payment
+            ON payment_info.payment_key = $1 AND psychology_payment.payment_key = payment_info.payment_key
+            `
+        ,[paymentKey]);
+        console.log(checkValidRefund.rows[0]);
+        /*
+        await pg.queryUpdate('BEGIN;',[]);
+        await pg.queryUpdate(
+            `
+            UPDATE knock.payment_info SET status='CANCEL', cancel_amount = price, cancel_date = NOW() WHERE payment_key = $1
+            `
+        ,[paymentKey]);
+
+        const result = await axios.post(`https://api.tosspayments.com/v1/payments/${paymentKey}/cancel`,
+                reqBody, 
+                {
+                    headers : {
+                        "Authorization": "Basic dGVzdF9za19qWjYxSk94UlFWRW1hYnk2RUFEVlcwWDliQXF3Og==",
+                        "Content-Type": "application/json"
+                    }
+                })
+
+        if(result.status == 200)
+            await pg.queryUpdate('COMMIT;',[]);*/
+
+        return res.status(200).send(checkValidRefund.rows[0]);
+    }
+    catch(err){
+        
+        if(err instanceof NullParameterError)
+            return res.status(400).send();
+        if(err instanceof PostgreConnectionError)
+            return res.status(500).send();
+        if(err instanceof SqlSyntaxError){
+            await pg.queryUpdate('ROLLBACK;',[]);
+            return res.status(500).send();
+        }
+        if(err.response.data.code == 'ALREADY_CANCELED_PAYMENT')
+            return res.status(409).send();
+        if(err.response.data.code == 'NOT_FOUND_PAYMENT')
+            return res.status(404).send();
+        
+        if(err.response.data.code == 'NOT_CANCELABLE_AMOUNT')
+            return res.status(400).send();
+    
         return res.status(500).send();
     }
     finally{

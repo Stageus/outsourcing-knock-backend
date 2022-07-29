@@ -853,12 +853,12 @@ module.exports.getPaymentDetail = async(req,res) =>{
             `
             SELECT payment_info.payment_key, 
             CASE WHEN status = 'DONE' THEN '결제완료' WHEN status = 'CANCEL' THEN '결제취소' ELSE '환불처리' END AS payment_status, (SELECT nickname FROM knock.users WHERE user_index = payment_info.user_index), 
-            COALESCE((SELECT name FROM knock.expert WHERE expert_index = test.expert_index), '미정') AS expert_name, '심리검사' AS product_type, price, to_char(payment_date, 'YYYY.MM.DD HH:MI:SS') AS payment_date, payment_method, COALESCE(to_char(counseling_start_time, 'YYYY.MM.DD / HH:MI'), '미정') AS counseling_time, cancel_amount, order_id, coupon, discount_amount, original_price
+            COALESCE((SELECT name FROM knock.expert WHERE expert_index = test.expert_index), '미정') AS expert_name, '심리검사' AS product_type, price, to_char(payment_date, 'YYYY.MM.DD HH24:MI:SS') AS payment_date, payment_method, COALESCE(to_char(counseling_start_time, 'YYYY.MM.DD / HH24:MI'), '미정') AS counseling_time, cancel_amount, order_id, coupon, discount_amount, original_price
             FROM knock.payment_info 
-            INNER JOIN (SELECT payment_key,expert_index, counseling_start_time 
+            INNER JOIN (SELECT payment_key, expert_index, counseling_start_time 
                         FROM knock.test_payment 
                         LEFT JOIN knock.allotted_test 
-                        USING (payment_key)) AS test
+                        ON allotted.payment_key = $1 AND test_payment.payment_key = allotted_test.payment_key) AS test
             ON payment_info.payment_key = $1 AND payment_info.payment_key = test.payment_key
             LEFT JOIN (SELECT name AS coupon, discount_amount, payment_key FROM knock.coupon INNER JOIN knock.have_coupon ON have_coupon.payment_key = $1 AND user_index IS NOT NULL AND coupon.coupon_index = have_coupon.coupon_index) AS coupon
             ON coupon.payment_key = payment_info.payment_key
@@ -867,8 +867,9 @@ module.exports.getPaymentDetail = async(req,res) =>{
             CASE WHEN status = 'DONE' THEN '결제완료' WHEN status = 'CANCEL' THEN '결제취소' ELSE '환불처리' END AS payment_status, (SELECT nickname FROM knock.users WHERE user_index = payment_info.user_index), 
             (SELECT name FROM knock.expert WHERE expert_index = psychology_payment.expert_index) AS expert_name, 
             CASE WHEN (SELECT expert_type FROM knock.expert_type INNER JOIN knock.have_expert_type ON expert_index = psychology_payment.expert_index AND have_expert_type.expert_type_index = expert_type.expert_type_index) = '정신건강의학과 전문의' THEN '전문가 상담' ELSE '심리상담' END AS product_type,
-            price, to_char(payment_date, 'YYYY.MM.DD HH:MI:SS') AS payment_date, payment_method, to_char(counseling_start_time, 'YYYY.MM.DD / HH:MI') AS counseling_time, cancel_amount, order_id, coupon, discount_amount, original_price
-            FROM knock.payment_info INNER JOIN knock.psychology_payment 
+            price, to_char(payment_date, 'YYYY.MM.DD HH24:MI:SS') AS payment_date, payment_method, to_char(counseling_start_time, 'YYYY.MM.DD / HH24:MI') AS counseling_time, cancel_amount, order_id, coupon, discount_amount, original_price
+            FROM knock.payment_info 
+            INNER JOIN knock.psychology_payment 
             ON payment_info.payment_key = $1 AND payment_info.payment_key = psychology_payment.payment_key
             LEFT JOIN (SELECT name AS coupon, discount_amount, payment_key FROM knock.coupon INNER JOIN knock.have_coupon ON have_coupon.payment_key = $1 AND user_index IS NOT NULL AND coupon.coupon_index = have_coupon.coupon_index) AS coupon
             ON coupon.payment_key = payment_info.payment_key
@@ -1028,7 +1029,7 @@ module.exports.getAllCouponList = async(req,res) =>{
         await pg.connect();
         const result = await pg.queryExecute(
             `
-            SELECT coupon_index AS coupon_id, name, available_count, CONCAT('생성일로부터 ',available_period,'일') AS available_period, to_char(created_at, 'YYYY.MM.DD HH:MI') AS created_at, active_status FROM knock.coupon;
+            SELECT coupon_index AS coupon_id, name, available_count, CONCAT('생성일로부터 ',available_period,'일') AS available_period, to_char(created_at, 'YYYY.MM.DD HH24:MI') AS created_at, active_status FROM knock.coupon;
             `
         ,[])
         return res.status(200).send({
@@ -1069,7 +1070,7 @@ module.exports.searchCouponList = async(req,res) =>{
         await pg.connect();
         const result = await pg.queryExecute(
             `
-            SELECT coupon_index AS coupon_id, name, available_count, CONCAT('생성일로부터',available_period,'일') AS available_period, to_char(created_at, 'YYYY.MM.DD HH:MI') AS created_at, active_status FROM knock.coupon
+            SELECT coupon_index AS coupon_id, name, available_count, CONCAT('생성일로부터',available_period,'일') AS available_period, to_char(created_at, 'YYYY.MM.DD HH24:MI') AS created_at, active_status FROM knock.coupon
             ${where}
             ORDER BY created_at;
             `
@@ -1218,7 +1219,7 @@ module.exports.getAffiliateList = async(req,res)=>{
         await pg.connect();
         const result = await pg.queryExecute(
             `
-            SELECT affiliate_index AS affiliate_id, company, manager, to_char(created_at, 'YYYY.MM.DD HH:MI') AS created_at, (SELECT COUNT(*) FROM knock.affiliate_code WHERE affiliate_index = affiliate.affiliate_index)
+            SELECT affiliate_index AS affiliate_id, company, manager, to_char(created_at, 'YYYY.MM.DD HH24:MI') AS created_at, (SELECT COUNT(*) FROM knock.affiliate_code WHERE affiliate_index = affiliate.affiliate_index)
             FROM knock.affiliate;
             `
         ,[])
@@ -1421,7 +1422,7 @@ module.exports.getAffiliateCouponList = async(req,res)=>{
 
         const result = await pg.queryExecute(
             `
-            SELECT coupon_index AS coupon_id, name, available_count, CONCAT('생성일로부터 ',available_period,'일') AS available_period, to_char(created_at, 'YYYY.MM.DD HH:MI') AS created_at, active_status
+            SELECT coupon_index AS coupon_id, name, available_count, CONCAT('생성일로부터 ',available_period,'일') AS available_period, to_char(created_at, 'YYYY.MM.DD HH24:MI') AS created_at, active_status
             FROM knock.coupon
             WHERE affiliates = (SELECT company FROM knock.affiliate WHERE affiliate_index = $1);
             `
@@ -1678,7 +1679,7 @@ module.exports.getCancelPaymentDetail = async(req,res) =>{
         const result = await pg.queryExecute(
             `
             SELECT payment_info.payment_key, CASE WHEN status = 'DONE' THEN '결제완료' ELSE '결제취소' END AS payment_status, (SELECT nickname FROM knock.users WHERE user_index = payment_info.user_index), 
-            COALESCE((SELECT name FROM knock.expert WHERE expert_index = test.expert_index), '미정') AS expert_name, '심리검사' AS product_type, to_char(payment_date, 'YYYY.MM.DD HH:MI:SS') AS payment_date, payment_method, COALESCE(to_char(counseling_start_time, 'YYYY.MM.DD / HH:MI'), '미정') AS counseling_time, cancel_amount, order_id, coupon, original_price AS price, to_char(cancel_date, 'YYYY.MM.DD HH:MI:SS') AS cancel_date
+            COALESCE((SELECT name FROM knock.expert WHERE expert_index = test.expert_index), '미정') AS expert_name, '심리검사' AS product_type, to_char(payment_date, 'YYYY.MM.DD HH24:MI:SS') AS payment_date, payment_method, COALESCE(to_char(counseling_start_time, 'YYYY.MM.DD / HH24:MI'), '미정') AS counseling_time, cancel_amount, order_id, coupon, original_price AS price, to_char(cancel_date, 'YYYY.MM.DD HH24:MI:SS') AS cancel_date
             FROM knock.payment_info 
             INNER JOIN (SELECT payment_key,expert_index, counseling_start_time 
                         FROM knock.test_payment 
@@ -1691,8 +1692,9 @@ module.exports.getCancelPaymentDetail = async(req,res) =>{
             SELECT payment_info.payment_key, CASE WHEN status = 'DONE' THEN '결제완료' ELSE '결제취소' END AS payment_status, (SELECT nickname FROM knock.users WHERE user_index = payment_info.user_index), 
             (SELECT name FROM knock.expert WHERE expert_index = psychology_payment.expert_index) AS expert_name, 
             CASE WHEN (SELECT expert_type FROM knock.expert_type INNER JOIN knock.have_expert_type ON expert_index = psychology_payment.expert_index AND have_expert_type.expert_type_index = expert_type.expert_type_index) = '정신건강의학과 전문의' THEN '전문가 상담' ELSE '심리상담' END AS product_type,
-            to_char(payment_date, 'YYYY.MM.DD HH:MI:SS') AS payment_date, payment_method, to_char(counseling_start_time, 'YYYY.MM.DD / HH:MI') AS counseling_time, cancel_amount, order_id, coupon, original_price AS price, to_char(cancel_date, 'YYYY.MM.DD HH:MI:SS') AS cancel_date
-            FROM knock.payment_info INNER JOIN knock.psychology_payment 
+            to_char(payment_date, 'YYYY.MM.DD HH24:MI:SS') AS payment_date, payment_method, to_char(counseling_start_time, 'YYYY.MM.DD / HH24:MI') AS counseling_time, cancel_amount, order_id, coupon, original_price AS price, to_char(cancel_date, 'YYYY.MM.DD HH24:MI:SS') AS cancel_date
+            FROM knock.payment_info 
+            INNER JOIN knock.psychology_payment 
             ON payment_info.payment_key = $1 AND payment_info.payment_key = psychology_payment.payment_key
             LEFT JOIN (SELECT name AS coupon, payment_key FROM knock.coupon INNER JOIN knock.have_coupon ON have_coupon.payment_key = $1 AND user_index IS NOT NULL AND coupon.coupon_index = have_coupon.coupon_index) AS coupon
             ON coupon.payment_key = payment_info.payment_key;

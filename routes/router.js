@@ -133,6 +133,7 @@ router.get('/experts/:expertid/best-reviews', expert.getBestReview);
 router.get('/experts/:expertid', expert.getExpertDetail);
 router.post('/kakao', userAccount.kakaoLogin);
 router.post('/google', userAccount.googleLogin);
+router.delete('/payment/:paymentKey', userAccount.cancelPayment);
 router.get('/payment/:paymentKey', userAccount.getPaymentDetail);
 router.get('/payment-form',toss.getPaymentForm);
 router.get('/payment-success',toss.approvalCardPayment);
