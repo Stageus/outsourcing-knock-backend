@@ -14,6 +14,9 @@ const admin = require('../middlewares/admin');
 const image = require('../middlewares/image');
 
 //dev_Lee
+router.get('/superadmin-settlement-of-month',admin.getSettlementOfMonthList);
+router.get('/superadmin-cancelpayment/:paymentKey', admin.getCancelPaymentDetail);
+router.get('/superadmin-cancelpayment', admin.getCancelPaymentList);
 router.get('/superadmin-payment/:paymentKey',jwtToken.verifyAdminToken, admin.getPaymentDetail);
 router.delete('/superadmin-payment/:paymentKey', admin.cancelPayment);
 router.post('/users/:userId/affiliate', userAccount.authenticateAffiliate);

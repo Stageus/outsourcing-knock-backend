@@ -751,7 +751,6 @@ module.exports.searchBannerList = async(req,res) =>{
     }   
 }
 
-
 module.exports.getAllPaymentList = async(req,res) =>{
 
     const pg = new postgres();
@@ -759,20 +758,19 @@ module.exports.getAllPaymentList = async(req,res) =>{
         await pg.connect();
         const result = await pg.queryExecute(
             `
-            SELECT payment_key, 
+            SELECT payment_info.payment_key, 
             CASE WHEN status = 'DONE' THEN '결제완료' ELSE '결제취소' END AS payment_status, (SELECT nickname FROM knock.users WHERE user_index = payment_info.user_index), 
             COALESCE((SELECT name FROM knock.expert WHERE expert_index = test.expert_index), '미정') AS expert_name, '심리검사' AS product_type, price, to_char(payment_date, 'YYYY.MM.DD') AS payment_date, order_id
-            FROM knock.payment_info INNER JOIN (SELECT payment_key,expert_index FROM knock.test_payment INNER JOIN knock.allotted_test USING (payment_key)) AS test
-            USING (payment_key)
+            FROM knock.payment_info INNER JOIN (SELECT payment_key,expert_index FROM knock.test_payment LEFT JOIN knock.allotted_test USING (payment_key)) AS test
+            ON payment_info.payment_key = test.payment_key AND status != 'WAITING_FOR_DEPOSIT'
             UNION
-            SELECT payment_key, 
+            SELECT payment_info.payment_key, 
             CASE WHEN status = 'DONE' THEN '결제완료' ELSE '결제취소' END AS payment_status, (SELECT nickname FROM knock.users WHERE user_index = payment_info.user_index), 
             (SELECT name FROM knock.expert WHERE expert_index = psychology_payment.expert_index) AS expert_name, 
             CASE WHEN (SELECT expert_type FROM knock.expert_type INNER JOIN knock.have_expert_type ON expert_index = psychology_payment.expert_index AND have_expert_type.expert_type_index = expert_type.expert_type_index) = '정신건강의학과 전문의' THEN '전문가 상담' ELSE '심리상담' END AS product_type,
             price, to_char(payment_date, 'YYYY.MM.DD') AS payment_date, order_id
             FROM knock.payment_info INNER JOIN knock.psychology_payment 
-            USING (payment_key)
-            WHERE status != 'WAITING_FOR_DEPOSIT'
+            ON payment_info.payment_key = psychology_payment.payment_key AND status != 'WAITING_FOR_DEPOSIT'
             ORDER BY payment_date;
             `
         ,[])
@@ -809,7 +807,7 @@ module.exports.searchPaymentList = async(req,res) =>{
             SELECT payment_key, 
             CASE WHEN status = 'DONE' THEN '결제완료' ELSE '결제취소' END AS payment_status, (SELECT nickname FROM knock.users WHERE user_index = payment_info.user_index), 
             COALESCE((SELECT name FROM knock.expert WHERE expert_index = test.expert_index), '미정') AS expert_name, '심리검사' AS product_type, price, to_char(payment_date, 'YYYY.MM.DD') AS payment_date
-            FROM knock.payment_info INNER JOIN (SELECT payment_key,expert_index FROM knock.test_payment INNER JOIN knock.allotted_test USING (payment_key)) AS test
+            FROM knock.payment_info INNER JOIN (SELECT payment_key,expert_index FROM knock.test_payment LEFT JOIN knock.allotted_test USING (payment_key)) AS test
             USING (payment_key)
             WHERE status != 'WAITING_FOR_DEPOSIT'
             UNION
@@ -854,19 +852,19 @@ module.exports.getPaymentDetail = async(req,res) =>{
         const result = await pg.queryExecute(
             `
             SELECT payment_info.payment_key, 
-            CASE WHEN status = 'DONE' THEN '결제완료' ELSE '결제취소' END AS payment_status, (SELECT nickname FROM knock.users WHERE user_index = payment_info.user_index), 
+            CASE WHEN status = 'DONE' THEN '결제완료' WHEN status = 'CANCEL' THEN '결제취소' ELSE '환불처리' END AS payment_status, (SELECT nickname FROM knock.users WHERE user_index = payment_info.user_index), 
             COALESCE((SELECT name FROM knock.expert WHERE expert_index = test.expert_index), '미정') AS expert_name, '심리검사' AS product_type, price, to_char(payment_date, 'YYYY.MM.DD HH:MI:SS') AS payment_date, payment_method, COALESCE(to_char(counseling_start_time, 'YYYY.MM.DD / HH:MI'), '미정') AS counseling_time, cancel_amount, order_id, coupon, discount_amount, original_price
             FROM knock.payment_info 
             INNER JOIN (SELECT payment_key,expert_index, counseling_start_time 
                         FROM knock.test_payment 
-                        INNER JOIN knock.allotted_test 
+                        LEFT JOIN knock.allotted_test 
                         USING (payment_key)) AS test
             ON payment_info.payment_key = $1 AND payment_info.payment_key = test.payment_key
             LEFT JOIN (SELECT name AS coupon, discount_amount, payment_key FROM knock.coupon INNER JOIN knock.have_coupon ON have_coupon.payment_key = $1 AND user_index IS NOT NULL AND coupon.coupon_index = have_coupon.coupon_index) AS coupon
             ON coupon.payment_key = payment_info.payment_key
             UNION
             SELECT payment_info.payment_key, 
-            CASE WHEN status = 'DONE' THEN '결제완료' ELSE '결제취소' END AS payment_status, (SELECT nickname FROM knock.users WHERE user_index = payment_info.user_index), 
+            CASE WHEN status = 'DONE' THEN '결제완료' WHEN status = 'CANCEL' THEN '결제취소' ELSE '환불처리' END AS payment_status, (SELECT nickname FROM knock.users WHERE user_index = payment_info.user_index), 
             (SELECT name FROM knock.expert WHERE expert_index = psychology_payment.expert_index) AS expert_name, 
             CASE WHEN (SELECT expert_type FROM knock.expert_type INNER JOIN knock.have_expert_type ON expert_index = psychology_payment.expert_index AND have_expert_type.expert_type_index = expert_type.expert_type_index) = '정신건강의학과 전문의' THEN '전문가 상담' ELSE '심리상담' END AS product_type,
             price, to_char(payment_date, 'YYYY.MM.DD HH:MI:SS') AS payment_date, payment_method, to_char(counseling_start_time, 'YYYY.MM.DD / HH:MI') AS counseling_time, cancel_amount, order_id, coupon, discount_amount, original_price
@@ -1572,9 +1570,6 @@ module.exports.cancelPayment = async(req,res) =>{
         cancelReason : "관리자 취소처리",
         cancelAmount : price
     }
-    console.log(req.body.price);
-    console.log(reqBody);
-    
     try{
         await parameter.nullCheck(method, price, paymentKey);
         if(method == "가상계좌"){
@@ -1589,7 +1584,7 @@ module.exports.cancelPayment = async(req,res) =>{
         await pg.queryUpdate('BEGIN;',[]);
         await pg.queryUpdate(
             `
-            UPDATE knock.payment_info SET status='CANCEL', cancel_amount = cancel_amount + $1 WHERE payment_key = $2
+            UPDATE knock.payment_info SET status='REFUND', cancel_amount = cancel_amount + $1, cancel_date = NOW() WHERE payment_key = $2
             `
         ,[price, paymentKey]);
 
@@ -1625,6 +1620,140 @@ module.exports.cancelPayment = async(req,res) =>{
         if(err.response.data.code == 'NOT_CANCELABLE_AMOUNT')
             return res.status(400).send();
     
+        return res.status(500).send();
+    }
+    finally{
+        await pg.disconnect();
+    }
+}
+
+module.exports.getCancelPaymentList = async(req,res) =>{
+    const pg = new postgres();
+    try{
+        await pg.connect();
+        const result = await pg.queryExecute(
+            `
+            SELECT payment_info.payment_key, order_id,
+            (SELECT nickname FROM knock.users WHERE user_index = payment_info.user_index), 
+            COALESCE((SELECT name FROM knock.expert WHERE expert_index = test.expert_index), '미정') AS expert_name, '심리검사' AS product_type, original_price AS price, to_char(cancel_date, 'YYYY.MM.DD') AS cancel_date
+            FROM knock.payment_info INNER JOIN (SELECT payment_key,expert_index FROM knock.test_payment LEFT JOIN knock.allotted_test USING (payment_key)) AS test
+            ON (status = 'CANCEL' OR 'REFUND') AND  payment_info.payment_key = test.payment_key
+            UNION
+            SELECT payment_info.payment_key, order_id,
+            (SELECT nickname FROM knock.users WHERE user_index = payment_info.user_index), 
+            (SELECT name FROM knock.expert WHERE expert_index = psychology_payment.expert_index) AS expert_name, 
+            CASE WHEN (SELECT expert_type FROM knock.expert_type INNER JOIN knock.have_expert_type ON expert_index = psychology_payment.expert_index AND have_expert_type.expert_type_index = expert_type.expert_type_index) = '정신건강의학과 전문의' THEN '전문가 상담' ELSE '심리상담' END AS product_type,
+            original_price AS price, to_char(cancel_date, 'YYYY.MM.DD') AS cancel_date
+            FROM knock.payment_info INNER JOIN knock.psychology_payment 
+            ON (status = 'CANCEL' OR 'REFUND') AND  payment_info.payment_key = psychology_payment.payment_key
+            ORDER BY cancel_date;
+            `
+        ,[])
+        
+        return res.status(200).send({
+            paymentList : result.rows,
+            totalPageCount : Math.ceil(result.rowCount/10)
+        })
+    }
+    catch(err){
+        console.log(err);
+        if(err instanceof PostgreConnectionError)
+            return res.status(500).send();
+        if(err instanceof SqlSyntaxError)
+            return res.status(500).send();
+        
+        return res.status(500).send();
+    }
+    finally{
+        await pg.disconnect();
+    }
+}
+
+module.exports.getCancelPaymentDetail = async(req,res) =>{
+    const pg = new postgres();
+    const paymentKey = req.params.paymentKey;
+    try{
+        await parameter.nullCheck(paymentKey);
+        await pg.connect();
+        const result = await pg.queryExecute(
+            `
+            SELECT payment_info.payment_key, CASE WHEN status = 'DONE' THEN '결제완료' ELSE '결제취소' END AS payment_status, (SELECT nickname FROM knock.users WHERE user_index = payment_info.user_index), 
+            COALESCE((SELECT name FROM knock.expert WHERE expert_index = test.expert_index), '미정') AS expert_name, '심리검사' AS product_type, to_char(payment_date, 'YYYY.MM.DD HH:MI:SS') AS payment_date, payment_method, COALESCE(to_char(counseling_start_time, 'YYYY.MM.DD / HH:MI'), '미정') AS counseling_time, cancel_amount, order_id, coupon, original_price AS price, to_char(cancel_date, 'YYYY.MM.DD HH:MI:SS') AS cancel_date
+            FROM knock.payment_info 
+            INNER JOIN (SELECT payment_key,expert_index, counseling_start_time 
+                        FROM knock.test_payment 
+                        LEFT JOIN knock.allotted_test 
+                        USING (payment_key)) AS test
+            ON payment_info.payment_key = $1 AND payment_info.payment_key = test.payment_key
+            LEFT JOIN (SELECT name AS coupon, payment_key FROM knock.coupon INNER JOIN knock.have_coupon ON have_coupon.payment_key = $1 AND user_index IS NOT NULL AND coupon.coupon_index = have_coupon.coupon_index) AS coupon
+            ON coupon.payment_key = payment_info.payment_key
+            UNION
+            SELECT payment_info.payment_key, CASE WHEN status = 'DONE' THEN '결제완료' ELSE '결제취소' END AS payment_status, (SELECT nickname FROM knock.users WHERE user_index = payment_info.user_index), 
+            (SELECT name FROM knock.expert WHERE expert_index = psychology_payment.expert_index) AS expert_name, 
+            CASE WHEN (SELECT expert_type FROM knock.expert_type INNER JOIN knock.have_expert_type ON expert_index = psychology_payment.expert_index AND have_expert_type.expert_type_index = expert_type.expert_type_index) = '정신건강의학과 전문의' THEN '전문가 상담' ELSE '심리상담' END AS product_type,
+            to_char(payment_date, 'YYYY.MM.DD HH:MI:SS') AS payment_date, payment_method, to_char(counseling_start_time, 'YYYY.MM.DD / HH:MI') AS counseling_time, cancel_amount, order_id, coupon, original_price AS price, to_char(cancel_date, 'YYYY.MM.DD HH:MI:SS') AS cancel_date
+            FROM knock.payment_info INNER JOIN knock.psychology_payment 
+            ON payment_info.payment_key = $1 AND payment_info.payment_key = psychology_payment.payment_key
+            LEFT JOIN (SELECT name AS coupon, payment_key FROM knock.coupon INNER JOIN knock.have_coupon ON have_coupon.payment_key = $1 AND user_index IS NOT NULL AND coupon.coupon_index = have_coupon.coupon_index) AS coupon
+            ON coupon.payment_key = payment_info.payment_key;
+            `
+        ,[paymentKey]);
+
+        return res.status(200).send(result.rows[0]);
+    }
+    catch(err){
+        if(err instanceof NullParameterError)
+            return res.status(400).send();
+        if(err instanceof PostgreConnectionError)
+            return res.status(500).send();
+        if(err instanceof SqlSyntaxError)
+            return res.status(500).send();
+
+        return res.status(500).send();
+    }
+    finally{
+        await pg.disconnect();
+    }
+}
+
+module.exports.getSettlementOfMonthList = async(req,res) =>{
+    const pg = new postgres();
+    const date = new Date();
+    const firstDay = new Date(date.getFullYear(), date.getMonth(), 1);
+    const lastDay = new Date(date.getFullYear(), date.getMonth() + 1, 0);
+    
+    try{
+        await pg.connect();
+        const result = await pg.queryExecute(
+            `
+            SELECT expert_index AS expert_id, name, 
+                ((SELECT COUNT (*) FROM knock.payment_info INNER JOIN knock.psychology_payment ON expert_index = expert.expert_index AND price != cancel_amount AND payment_info.payment_key = psychology_payment.payment_key) + (SELECT COUNT (*) FROM knock.payment_info INNER JOIN knock.allotted_test ON expert_index = expert.expert_index AND price != cancel_amount AND payment_info.payment_key = allotted_test.payment_key)) AS payment_count, 
+                COALESCE(((SELECT SUM(price - cancel_amount) FROM knock.payment_info INNER JOIN knock.psychology_payment ON expert_index = expert.expert_index AND price != cancel_amount AND payment_info.payment_key = psychology_payment.payment_key) + (SELECT SUM(price - cancel_amount) FROM knock.payment_info INNER JOIN knock.allotted_test ON expert_index = expert.expert_index AND price != cancel_amount AND payment_info.payment_key = allotted_test.payment_key)), 0) AS total_payment, 
+                COALESCE((SELECT 'Y' FROM knock.monthly_pay_memo WHERE expert_index = expert.expert_index AND date BETWEEN $1 AND $2), 'N') AS is_calculated
+            FROM knock.expert;
+            `
+        ,[firstDay.getFullYear().toString()+ (firstDay.getMonth()+1).toString().padStart(2,'0') + firstDay.getDate().toString().padStart(2,'0'),
+        lastDay.getFullYear().toString()+ (lastDay.getMonth()+1).toString().padStart(2,'0') + lastDay.getDate().toString().padStart(2,'0')]);
+
+        const year = await pg.queryExecute(
+            `
+            SELECT array_agg(distinct(to_char(payment_date, 'YYYY'))) AS year_list FROM knock.payment_info;
+            `
+        ,[])
+
+        return res.status(200).send({
+            settlementList : result.rows,
+            totalPageCount : Math.ceil(result.rowCount/10),
+            date : firstDay.getFullYear().toString()+'/'+(firstDay.getMonth()+1).toString(),
+            yearList : year.rows[0].year_list
+        });
+    }
+    catch(err){
+        if(err instanceof PostgreConnectionError)
+            return res.status(500).send();
+        if(err instanceof SqlSyntaxError)
+            return res.status(500).send();
+
         return res.status(500).send();
     }
     finally{
