@@ -119,7 +119,7 @@ router.route('/experts/:expertId/chat/macro')
     .post(chat.updateMacro);
 
 
-router.get('/experts/:expertId/settlement/:pageCount', calculate.getCalculationDetail);
+router.get('/experts/:expertId/settlement', calculate.getCalculationDetail);
 router.put('/experts/:expertId/settlement', calculate.updateAccount);
 //
 
