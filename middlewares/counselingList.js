@@ -148,9 +148,7 @@ module.exports.getCounseling = async(req,res)=>{
     }
 }
 
-// 상담 목록 - 상세 수정 사항 저장
-// TODO : 진행상태에 따라서 다른 처리
-// TODO : push 알림 추가
+// 상담 목록 - 상세 수정 사항 저장 // TODO : push 알림 추가
 module.exports.updateCounseling = async(req,res)=>{
     const pg = new postgres();
     const expertId = req.params.expertId;
@@ -176,6 +174,7 @@ module.exports.updateCounseling = async(req,res)=>{
             `
         , [progress, productId]);
 
+        // 일정등록
         if(progress == "일정조율"){
             const result = await pg.queryExecute( // 알람
                 `
@@ -222,7 +221,8 @@ module.exports.updateCounseling = async(req,res)=>{
 
             // TODO: push알림 보내기
         }
-        else if(progress == "일정확정"){
+        // 일정변경
+        else if(progress == "일정확정" && counselingTime != ""){
             const result = await pg.queryExecute( // 알람
                 `
                 WITH product_id as (SELECT payment_key FROM knock.payment_info WHERE payment_key = $1),
@@ -230,21 +230,21 @@ module.exports.updateCounseling = async(req,res)=>{
                 
                 INSERT INTO knock.alarm (user_index, payment_key, is_checked, title, content, created_at)
                 VALUES((SELECT user_index from knock.payment_info WHERE payment_key = (SELECT payment_key FROM product_id)), (SELECT payment_key FROM product_id), false,
-                (SELECT CONCAT('🔔전문가와 상담 일정이 변경되었습니다.\n-예약시간', 
-                (SELECT TO_CHAR(counseling_start_time, 'YYYY-MM-DD') FROM knock.psychology_payment WHERE payment_key = (SELECT payment_key FROM product_id)),
-                (SELECT CASE 
-                        WHEN weekday =0 THEN '(일)'
-                        WHEN weekday = 1 THEN '(월)'
-                        WHEN weekday = 2 THEN '(화)'
-                        WHEN weekday = 3 THEN '(수)'
-                        WHEN weekday = 4 THEN '(목)'
-                        WHEN weekday = 5 THEN '(금)'
-                        WHEN weekday = 6 THEN '(토)'
-                    ELSE '(?)'
-                    END from weekday),
-                (SELECT TO_CHAR(counseling_start_time, 'AM hh12:mi-') FROM knock.psychology_payment WHERE payment_key = (SELECT payment_key FROM product_id)),
-                (SELECT TO_CHAR(counseling_end_time, 'hh12:mi') FROM knock.psychology_payment WHERE payment_key = (SELECT payment_key FROM product_id)) ) AS title FROM weekday),
-                '상담 일정변경은 상담 당일 이전까지 변경 가능합니다.', NOW()
+                    (SELECT CONCAT('🔔전문가와 상담 일정이 변경되었습니다.\n-예약시간', 
+                    (SELECT TO_CHAR(counseling_start_time, 'YYYY-MM-DD') FROM knock.psychology_payment WHERE payment_key = (SELECT payment_key FROM product_id)),
+                    (SELECT CASE 
+                            WHEN weekday = 0 THEN '(일)'
+                            WHEN weekday = 1 THEN '(월)'
+                            WHEN weekday = 2 THEN '(화)'
+                            WHEN weekday = 3 THEN '(수)'
+                            WHEN weekday = 4 THEN '(목)'
+                            WHEN weekday = 5 THEN '(금)'
+                            WHEN weekday = 6 THEN '(토)'
+                        ELSE '(?)'
+                        END from weekday),
+                    (SELECT TO_CHAR(counseling_start_time, 'AM hh12:mi-') FROM knock.psychology_payment WHERE payment_key = (SELECT payment_key FROM product_id)),
+                    (SELECT TO_CHAR(counseling_end_time, 'hh12:mi') FROM knock.psychology_payment WHERE payment_key = (SELECT payment_key FROM product_id)) ) AS title FROM weekday),
+                    '상담 일정변경은 상담 당일 이전까지 변경 가능합니다.', NOW()
                 )
                 RETURNING title, content;
                 `
@@ -267,6 +267,44 @@ module.exports.updateCounseling = async(req,res)=>{
 
             // TODO: push 알림 보내기
         }
+        // 상담개시
+        else if(progress == "일정확정" && counselingTime == ""){
+            const result = await pg.queryExecute( // 알람
+                `
+                WITH product_id as (SELECT payment_key FROM knock.payment_info WHERE payment_key = $1),
+                weekday AS (SELECT EXTRACT(DOW FROM (SELECT counseling_start_time FROM knock.psychology_payment WHERE payment_key = (SELECT payment_key FROM product_id) )) AS weekday)
+                
+                INSERT INTO knock.alarm (user_index, payment_key, is_checked, title, content, created_at)
+                VALUES(
+                    (SELECT user_index from knock.payment_info WHERE payment_key = (SELECT payment_key FROM product_id)), 
+                    (SELECT payment_key FROM product_id), 
+                    false,
+                    '🔔지금부터 상담이 시작됩니다.', 
+                    '상담시작을 위해 ''상담 동의서''를 확인해주세요.',
+                    NOW()
+                )
+                RETURNING title, content;
+                `
+            , [productId]);
+
+            await pg.queryUpdate( // 채팅
+                `
+                WITH product_id AS (SELECT payment_key FROM knock.payment_info WHERE payment_key = $1),
+                room_info AS (SELECT room_index FROM knock.room_payment_history WHERE payment_key = (SELECT payment_key FROM product_id)),
+                psychology_info AS (SELECT expert_index FROM knock.psychology_payment WHERE payment_key = (SELECT payment_key FROM product_id))
+                
+                INSERT INTO knock.chatting (room_index, sender_index, message, created_at, is_alarm)
+                VALUES(
+                    (SELECT room_index FROM room_info),
+                    (SELECT expert_index FROM psychology_info),
+                    CONCAT($2, '/', $3), NOW(), true
+                )                
+                `
+            , [productId, result.rows[0].title, result.rows[0].content]);
+
+            // TODO: push 알림 보내기
+        }
+        // 상담종료
         else if(progress == "상담중"){
             const result = await pg.queryUpdate( // 알림
                 `
@@ -455,33 +493,66 @@ module.exports.joinChatRoom = async(req,res)=>{
     }
 }
 
-// 상담 목록 - 상담일정 확정 / 변경 
+// 상담 목록 - 상담일정 등록 // TODO : push 알림 추가
 module.exports.setCounselingDate = async(req,res)=>{
     const pg = new postgres();
     const expertId = req.params.expertId;
     const productId = req.params.productId;
-    const counselingDate = req.body.time;
-    const action = req.body.action;
-
-    const alarm_title = `전문가와 상담 일정이 ${action}되었습니다.\n- 예약시간 ${counselingDate}`;
-    const alarm_content = `상담 일정변경은 상담 당일 이전까지 변경 가능합니다.`;
+    const counselingTime = req.body.time;
 
     try{
         await pg.connect();
         await pg.queryUpdate(`BEGIN;`);
-        await pg.queryUpdate(
-            `
-            UPDATE knock.psychology_payment SET consultation_time = $3
-            WHERE payment_key = $1 AND expert_index = $2;
-            `
-        , [productId, expertId, counselingDate]);
 
         await pg.queryUpdate(
             `
-            INSERT INTO knock.alarm (user_index, payment_key, is_checked, title, content, created_at) 
-            VALUES((SELECT user_index FROM knock.psychology_payment WHERE payment_key = $1), $1, false, $2, $3, NOW());
+            UPDATE knock.psychology_payment SET consultation_time = $1
+            WHERE payment_key = $2 AND expert_index = $3;
             `
-        , [productId, alarm_title, alarm_content]);
+        , [counselingTime, productId, expertId]);
+
+        const result = await pg.queryExecute( // 알람
+            `
+            WITH product_id as (SELECT payment_key FROM knock.payment_info WHERE payment_key = $1),
+            weekday AS (SELECT EXTRACT(DOW FROM (SELECT counseling_start_time FROM knock.psychology_payment WHERE payment_key = (SELECT payment_key FROM product_id) )) AS weekday)
+            
+            INSERT INTO knock.alarm (user_index, payment_key, is_checked, title, content, created_at)
+            VALUES(
+                (SELECT user_index from knock.payment_info WHERE payment_key = (SELECT payment_key FROM product_id)), (SELECT payment_key FROM product_id), false,
+                (SELECT CONCAT('🔔전문가와 상담 일정이 확정되었습니다.\n-예약시간', 
+                (SELECT TO_CHAR(counseling_start_time, 'YYYY-MM-DD') FROM knock.psychology_payment WHERE payment_key = (SELECT payment_key FROM product_id)),
+                (SELECT CASE 
+                        WHEN weekday =0 THEN '(일)'
+                        WHEN weekday = 1 THEN '(월)'
+                        WHEN weekday = 2 THEN '(화)'
+                        WHEN weekday = 3 THEN '(수)'
+                        WHEN weekday = 4 THEN '(목)'
+                        WHEN weekday = 5 THEN '(금)'
+                        WHEN weekday = 6 THEN '(토)'
+                    ELSE '(?)'
+                    END from weekday),
+                (SELECT TO_CHAR(counseling_start_time, 'AM hh12:mi-') FROM knock.psychology_payment WHERE payment_key = (SELECT payment_key FROM product_id)),
+                (SELECT TO_CHAR(counseling_end_time, 'hh12:mi') FROM knock.psychology_payment WHERE payment_key = (SELECT payment_key FROM product_id)) ) AS title FROM weekday),
+                '상담 일정변경은 상담 당일 이전까지 변경 가능합니다.', NOW()
+            )
+            RETURNING title, content;
+            `
+        , [productId]);
+
+        await pg.queryUpdate( // 채팅
+            `
+            WITH product_id AS (SELECT payment_key FROM knock.payment_info WHERE payment_key = $1),
+            room_info AS (SELECT room_index FROM knock.room_payment_history WHERE payment_key = (SELECT payment_key FROM product_id)),
+            psychology_info AS (SELECT expert_index FROM knock.psychology_payment WHERE payment_key = (SELECT payment_key FROM product_id))
+            
+            INSERT INTO knock.chatting (room_index, sender_index, message, created_at, is_alarm)
+            VALUES(
+                (SELECT room_index FROM room_info),
+                (SELECT expert_index FROM psychology_info),
+                CONCAT($2, '/', $3), NOW(), true
+            )
+            `
+        , [productId, result.rows[0].title, result.rows[0].content]);
 
         return res.status(200).send();
     }
@@ -500,14 +571,89 @@ module.exports.setCounselingDate = async(req,res)=>{
     }
 }
 
-// 상담 목록 - 상담 개시
-// TODO: 채팅방 알림 추가
+// 상담 목록 - 상담일정 변경 // TODO : push 알림 추가
+module.exports.updateCounselingDate = async(req,res)=>{
+    const pg = new postgres();
+    const expertId = req.params.expertId;
+    const productId = req.params.productId;
+    const counselingTime = req.body.time;
+
+    try{
+        await pg.connect();
+        await pg.queryUpdate(`BEGIN;`);
+
+        await pg.queryUpdate(
+            `
+            UPDATE knock.psychology_payment SET consultation_time = $1
+            WHERE payment_key = $2 AND expert_index = $3;
+            `
+        , [counselingTime, productId, expertId]);
+
+        const result = await pg.queryExecute( // 알람
+            `
+            WITH product_id as (SELECT payment_key FROM knock.payment_info WHERE payment_key = $1),
+            weekday AS (SELECT EXTRACT(DOW FROM (SELECT counseling_start_time FROM knock.psychology_payment WHERE payment_key = (SELECT payment_key FROM product_id) )) AS weekday)
+            
+            INSERT INTO knock.alarm (user_index, payment_key, is_checked, title, content, created_at)
+            VALUES((SELECT user_index from knock.payment_info WHERE payment_key = (SELECT payment_key FROM product_id)), (SELECT payment_key FROM product_id), false,
+                (SELECT CONCAT('🔔전문가와 상담 일정이 변경되었습니다.\n-예약시간', 
+                (SELECT TO_CHAR(counseling_start_time, 'YYYY-MM-DD') FROM knock.psychology_payment WHERE payment_key = (SELECT payment_key FROM product_id)),
+                (SELECT CASE 
+                        WHEN weekday =0 THEN '(일)'
+                        WHEN weekday = 1 THEN '(월)'
+                        WHEN weekday = 2 THEN '(화)'
+                        WHEN weekday = 3 THEN '(수)'
+                        WHEN weekday = 4 THEN '(목)'
+                        WHEN weekday = 5 THEN '(금)'
+                        WHEN weekday = 6 THEN '(토)'
+                    ELSE '(?)'
+                    END from weekday),
+                (SELECT TO_CHAR(counseling_start_time, 'AM hh12:mi-') FROM knock.psychology_payment WHERE payment_key = (SELECT payment_key FROM product_id)),
+                (SELECT TO_CHAR(counseling_end_time, 'hh12:mi') FROM knock.psychology_payment WHERE payment_key = (SELECT payment_key FROM product_id)) ) AS title FROM weekday),
+                '상담 일정변경은 상담 당일 이전까지 변경 가능합니다.', NOW()
+            )
+            RETURNING title, content;
+            `
+        , [productId]);
+
+        await pg.queryUpdate( // 채팅
+            `
+            WITH product_id AS (SELECT payment_key FROM knock.payment_info WHERE payment_key = $1),
+            room_info AS (SELECT room_index FROM knock.room_payment_history WHERE payment_key = (SELECT payment_key FROM product_id)),
+            psychology_info AS (SELECT expert_index FROM knock.psychology_payment WHERE payment_key = (SELECT payment_key FROM product_id))
+            
+            INSERT INTO knock.chatting (room_index, sender_index, message, created_at, is_alarm)
+            VALUES(
+                (SELECT room_index FROM room_info),
+                (SELECT expert_index FROM psychology_info),
+                CONCAT($2, '/', $3), NOW(), true
+            )
+            `
+        , [productId, result.rows[0].title, result.rows[0].content]);
+
+        // TODO: push 알림 보내기
+        
+        return res.status(200).send();
+    }
+    catch(err){
+        await pg.queryUpdate(`ROLLBACK;`);
+        if(err instanceof NullParameterError)
+            return res.status(400).send();
+        if(err instanceof PostgreConnectionError)
+            return res.status(500).send();
+        if(err instanceof SqlSyntaxError)
+            return res.status(409).send();
+    }
+    finally{
+        await pg.queryUpdate(`END;`);
+        await pg.disconnect();
+    }
+}
+
+// 상담 목록 - 상담 개시 // TODO: push 알림 추가
 module.exports.beginCounseling = async(req,res)=>{
     const pg = new postgres();
     const productId = req.params.productId;
-
-    const alarm_title = `지금부터 상담이 시작됩니다.`;
-    const alarm_content = `상담 시작을 위해 '상담 동의서'를 확인해주세요.`;
 
     try{
         await pg.connect();
@@ -519,13 +665,41 @@ module.exports.beginCounseling = async(req,res)=>{
             WHERE payment_key = $1;
             `
         , [productId]);
+        
+        const result = await pg.queryExecute( // 알람
+            `
+            WITH product_id as (SELECT payment_key FROM knock.payment_info WHERE payment_key = $1),
+            weekday AS (SELECT EXTRACT(DOW FROM (SELECT counseling_start_time FROM knock.psychology_payment WHERE payment_key = (SELECT payment_key FROM product_id) )) AS weekday)
+            
+            INSERT INTO knock.alarm (user_index, payment_key, is_checked, title, content, created_at)
+            VALUES(
+                (SELECT user_index from knock.payment_info WHERE payment_key = (SELECT payment_key FROM product_id)), 
+                (SELECT payment_key FROM product_id), 
+                false,
+                '🔔지금부터 상담이 시작됩니다.', 
+                '상담시작을 위해 ''상담 동의서''를 확인해주세요.',
+                NOW()
+            )
+            RETURNING title, content;
+            `
+        , [productId]);
 
-        await pg.queryUpdate(
+        await pg.queryUpdate( // 채팅
             `
-            INSERT INTO knock.alarm (user_index, payment_key, is_checked, title, content, created_at) 
-            VALUES((SELECT user_index FROM knock.psychology_payment WHERE payment_key = $1), $1, false, $2, $3, NOW());
+            WITH product_id AS (SELECT payment_key FROM knock.payment_info WHERE payment_key = $1),
+            room_info AS (SELECT room_index FROM knock.room_payment_history WHERE payment_key = (SELECT payment_key FROM product_id)),
+            psychology_info AS (SELECT expert_index FROM knock.psychology_payment WHERE payment_key = (SELECT payment_key FROM product_id))
+            
+            INSERT INTO knock.chatting (room_index, sender_index, message, created_at, is_alarm)
+            VALUES(
+                (SELECT room_index FROM room_info),
+                (SELECT expert_index FROM psychology_info),
+                CONCAT($2, '/', $3), NOW(), true
+            )                
             `
-        , [productId, alarm_title, alarm_content]);
+        , [productId, result.rows[0].title, result.rows[0].content]);
+
+        // TODO: push 알림 보내기
 
         return res.status(200).send();
     }
@@ -544,13 +718,10 @@ module.exports.beginCounseling = async(req,res)=>{
     }
 }
 
-// 상담 목록 - 상담 종료
+// 상담 목록 - 상담 종료 // TODO: push 알림 추가
 module.exports.endCounseling = async(req,res)=>{
     const pg = new postgres();
     const productId = req.params.productId;
-
-    const alarm_title = `상담이 종료되었습니다.`;
-    const alarm_content = `님, 상담은 만족스러우셨나요? 더 좋은 서비스를 만들 수 있도록 소중한 후기를 남겨주세요.`;
 
     try{    
         await pg.connect();
@@ -563,12 +734,54 @@ module.exports.endCounseling = async(req,res)=>{
             `
         , [productId]);
 
-        await pg.queryUpdate(
+        const result = await pg.queryUpdate( // 알림
             `
-            INSERT INTO knock.alarm (user_index, payment_key, is_checked, title, content, created_at) 
-            VALUES((SELECT user_index FROM knock.psychology_payment WHERE payment_key = $1), $1, false, $2, $3, NOW());
+            WITH product_id AS (SELECT payment_key, user_index FROM knock.payment_info WHERE payment_key = $1),
+            user_name AS (SELECT nickname FROM knock.users WHERE user_index = (SELECT user_index FROM product_id))
+            
+            INSERT INTO knock.alarm (user_index, payment_key, is_checked, title, content, created_at)
+            VALUES(
+                (SELECT user_index from knock.payment_info WHERE payment_key = (SELECT payment_key FROM product_id)), 
+                (SELECT payment_key FROM product_id), 
+                false,
+                (SELECT CONCAT( 
+                    (SELECT nickname FROM user_name),
+                    '님, 상담은 만족스러우셨나요? 더 좋은 서비스를 만들 수 있도록 소중한 후기를 남겨주세요.'
+                )),
+                '상담 일정변경은 상담 당일 이전까지 변경 가능합니다.', NOW()
+            )
+            RETURNING title, content;
             `
-        , [productId, alarm_title, alarm_content]);
+        , [productId]);
+
+        await pg.queryUpdate( // 서비스 이용내역
+            `
+            WITH product_id AS (SELECT payment_key, user_index FROM knock.payment_info WHERE payment_key = $1)
+
+            INSERT INTO knock.service_progress (payment_key, created_at, title, content)
+            VALUES(
+                (SELECT payment_key FROM product_id),
+                NOW(), $2, $3
+            )
+            `
+        , [productId, result.rows[0].title, result.rows[0].content]);
+
+        await pg.queryUpdate( // 채팅
+            `
+            WITH product_id AS (SELECT payment_key FROM knock.payment_info WHERE payment_key = $1),
+            room_info AS (SELECT room_index FROM knock.room_payment_history WHERE payment_key = (SELECT payment_key FROM product_id)),
+            psychology_info AS (SELECT expert_index FROM knock.psychology_payment WHERE payment_key = (SELECT payment_key FROM product_id))
+            
+            INSERT INTO knock.chatting (room_index, sender_index, message, created_at, is_alarm)
+            VALUES(
+                (SELECT room_index FROM room_info),
+                (SELECT expert_index FROM psychology_info),
+                CONCAT($2, '/', $3), NOW(), true
+            )
+            `
+        , [productId, result.rows[0].title, result.rows[0].content]);
+
+        // TODO: push 알림 보내기
 
         return res.status(200).send();
     }

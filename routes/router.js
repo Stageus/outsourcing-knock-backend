@@ -83,6 +83,7 @@ router.get('/experts/counseling/:productId/prequestion', counselingList.getPrequ
 router.get('/experts/:expertId/counseling/:productId/review', counselingList.getReview);
 router.post('/experts/:expertId/counseling/:productId/join-room', counselingList.joinChatRoom);
 router.post('/experts/:expertId/counseling/:productId/time', counselingList.setCounselingDate);
+router.put('/experts/:expertId/counseling/:productId/time', counselingList.updateCounselingDate);
 router.post('/experts/counseling/:productId/begin', counselingList.beginCounseling);
 router.post('/experts/counseling/:productId/end', counselingList.endCounseling);
 router.post('/experts/counseling/:productId/cancel', counselingList.cancelCounseling);
