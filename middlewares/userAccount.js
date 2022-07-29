@@ -528,12 +528,12 @@ module.exports.getServiceUsageHistories = async(req, res) =>{
                 INNER JOIN knock.expert_type 
                 ON have_expert_type.expert_index = psychology_payment.expert_index 
                 AND have_expert_type.expert_type_index = expert_type.expert_type_index)
-            ,profile_img_url,
+            , profile_img_url,
                 (SELECT array_agg(type) FROM knock.counseling_type INNER JOIN knock.expert_counseling_type ON expert_counseling_type.expert_index = expert.expert_index AND counseling_type.counseling_type_index = expert_counseling_type.counseling_type_index) AS counseling_type
             , product_name, status AS payment_status, payment_date, counseling_status
             FROM knock.psychology_payment
             INNER JOIN knock.payment_info
-            ON psychology_payment.user_index = $1 AND  payment_info.payment_key = psychology_payment.payment_key 
+            ON psychology_payment.user_index = $1 AND payment_info.payment_key = psychology_payment.payment_key 
             INNER JOIN knock.expert
             ON expert.expert_index = psychology_payment.expert_index
             UNION
@@ -556,6 +556,37 @@ module.exports.getServiceUsageHistories = async(req, res) =>{
         
         if(err instanceof SqlSyntaxError)
             return res.status(500).send();
+    }
+    finally{
+        await pg.disconnect();
+    }
+}
+
+module.exports.getServiceUsageHistoriesDetail = async(req, res)=>{
+    const pg = new postgres();
+    const paymentKey = req.params.paymentKey;
+    try{
+        await pg.connect();
+        const result = await pg.queryExecute(
+            `
+            SELECT title, content 
+            FROM knock.service_progress
+            WHERE payment_key = $1
+            ORDER BY created_at;
+            `
+        ,[paymentKey])
+
+        return res.status(200).send({ progressMessageList : result.rows})
+    }
+    catch(err){
+        if(err instanceof NullParameterError)
+            return res.status(400).send();
+        if(err instanceof PostgreConnectionError)
+            return res.status(500).send();
+        if(err instanceof SqlSyntaxError)
+            return res.status(500).send();
+        
+        return res.status(500).send();
     }
     finally{
         await pg.disconnect();
@@ -863,6 +894,55 @@ module.exports.answerPreQuestion = async(req,res)=>{
     }
     catch(err){
         console.log(err);
+        if(err instanceof NullParameterError)
+            return res.status(400).send();
+        if(err instanceof PostgreConnectionError)
+            return res.status(500).send();
+        if(err instanceof SqlSyntaxError)
+            return res.status(500).send();
+
+        return res.status(500).send();
+    }
+    finally{
+        await pg.disconnect();
+    }
+}
+
+module.exports.getPaymentDetail = async(req,res) =>{
+    const pg = new postgres();
+    const paymentKey = req.params.paymentKey;
+    let discountAmount =0;
+    try{
+        await parameter.nullCheck(paymentKey);
+        await pg.connect();
+        const result = await pg.queryExecute(
+            `
+            SELECT payment_key, to_char(payment_date, 'YYYY.DD.MM. HH:MI') AS payment_date,
+            CASE WHEN status = 'DONE' THEN '결제완료' ELSE '결제취소' END AS payment_status,
+            order_id, original_price, payment_method, COALESCE((SELECT discount_amount FROM knock.have_coupon INNER JOIN knock.coupon ON payment_key = $1 AND coupon.coupon_index = have_coupon.coupon_index), '0') AS discount_amount
+            FROM knock.payment_info;
+            `
+        ,[paymentKey]);
+            console.log(result.rows[0])
+        if((result.rows[0].discount_amount).slice(-1) == "%"){
+            discountRate = Number(result.rows[0].discount_amount.substring(0, result.rows[0].discount_amount.length-1)) / 100;
+            discountAmount = result.rows[0].original_price * discountRate;
+        }
+        else
+            discountAmount = result.rows[0].discount_amount;
+        
+        return res.status(200).send({
+            payment_key : result.rows[0].payment_key,
+            payment_date : result.rows[0].payment_date,
+            payment_status : result.rows[0].payment_status,
+            order_id : result.rows[0].order_id,
+            original_price : result.rows[0].original_price,
+            payment_method : result.rows[0].payment_method,
+            discount_amount : Number(discountAmount),
+            total_amount : (result.rows[0].original_price - Number(discountAmount))
+        })
+    }
+    catch(err){
         if(err instanceof NullParameterError)
             return res.status(400).send();
         if(err instanceof PostgreConnectionError)

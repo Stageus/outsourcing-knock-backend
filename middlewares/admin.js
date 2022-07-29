@@ -1760,3 +1760,28 @@ module.exports.getSettlementOfMonthList = async(req,res) =>{
         await pg.disconnect();
     }
 }
+/*
+module.exports.getSettlementOfMonthList = async(req,res) =>{
+    const pg = new postgres();
+    const date = new Date();
+    const firstDay = new Date(date.getFullYear(), date.getMonth(), 1);
+    const lastDay = new Date(date.getFullYear(), date.getMonth() + 1, 0);
+    
+    try{
+        await pg.connect();
+
+        return res.status(200).send();
+    }
+    catch(err){
+        if(err instanceof PostgreConnectionError)
+            return res.status(500).send();
+        if(err instanceof SqlSyntaxError)
+            return res.status(500).send();
+
+        return res.status(500).send();
+    }
+    finally{
+        await pg.disconnect();
+    }
+}
+*/

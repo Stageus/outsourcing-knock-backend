@@ -21,6 +21,7 @@ router.get('/superadmin-payment/:paymentKey',jwtToken.verifyAdminToken, admin.ge
 router.delete('/superadmin-payment/:paymentKey', admin.cancelPayment);
 router.post('/users/:userId/affiliate', userAccount.authenticateAffiliate);
 router.get('/test/reviews/:pageCount', userAccount.getTestReview);
+router.get('/users/:userid/service-usage-histories/:paymentKey', userAccount.getServiceUsageHistoriesDetail);
 router.get('/users/:userid/service-usage-histories', jwtToken.verifyToken, userAccount.getServiceUsageHistories);
 router.get('/users/:userid/reviews/:reviewid', jwtToken.verifyAdminToken, admin.getUserReview);
 router.delete('/users/:userid/reviews',jwtToken.verifyAdminToken, admin.deleteUserReview);
@@ -126,6 +127,7 @@ router.get('/experts/:expertid/best-reviews', expert.getBestReview);
 router.get('/experts/:expertid', expert.getExpertDetail);
 router.post('/kakao', userAccount.kakaoLogin);
 router.post('/google', userAccount.googleLogin);
+router.get('/payment/:paymentKey', userAccount.getPaymentDetail);
 router.get('/payment-form',toss.getPaymentForm);
 router.get('/payment-success',toss.approvalCardPayment);
 router.post('/webhook',toss.getWebhook);
