@@ -159,7 +159,7 @@ module.exports.getCounselingList = async(req,res)=>{
         await pg.connect();
         const result = await pg.queryExecute(
             `
-            SELECT AT.payment_key AS product_key, TP.user_index, nickname AS user_nickname, counseling_status, status, counseling_start_time, counseling_end_time
+            SELECT AT.payment_key AS product_key, TP.user_index, nickname AS user_nickname, counseling_status, status, CONCAT(TO_CHAR(counseling_start_time, 'YYYY.MM.DD / HH:MI-'), TO_CHAR(counseling_end_time, 'HH:MI')) AS time
             FROM knock.allotted_test AS AT
             JOIN knock.test_payment AS TP ON AT.payment_key = TP.payment_key
             JOIN knock.users AS U ON TP.user_index = U.user_index
@@ -178,7 +178,7 @@ module.exports.getCounselingList = async(req,res)=>{
             ${whereClause}
             `
         );
-
+        
         return res.status(200).send({
             counselingList : result.rows,
             pageCount : count.rowCount,

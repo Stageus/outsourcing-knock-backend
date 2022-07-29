@@ -70,13 +70,13 @@ router.route('/experts/:expertId/info')
     .post(expert.updateExpertInfo);
 router.get('/phone-validation/:phone', phone.sendCertifiedNumber);
 router.post('/phone-validation/:phone', phone.phoneValidation);
-router.post('/push/:userid', push.pushAlarm);
 router.put('/push/:userid', push.registerDeviceToken);
+router.post('/push/:userid', push.pushAlarm);
 router.get('/push/:userid', push.getToken);
 
 router.get('/experts/test/counseling/:productId/review', testList.getReview);
 
-router.get('/experts/:expertId/counseling/:searchType/:description/:progress/:counselingType/:startDate/:endDate', counselingList.getCounselingList);
+router.get('/experts/:expertId/counseling/:searchType/:description/:progress/:counselingTypeChatting/:counselingTypeVoice/:startDate/:endDate', counselingList.getCounselingList);
 router.get('/experts/counseling/:productId', counselingList.getCounseling);
 router.post('/experts/:expertId/counseling/:productId', counselingList.updateCounseling);
 router.get('/experts/counseling/:productId/prequestion', counselingList.getPrequestion);

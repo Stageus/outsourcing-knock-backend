@@ -3,7 +3,7 @@ const mongodb = require("../database/MongoDB");
 const parameter = require('../utils/parameter');
 const {PostgreConnectionError, SqlSyntaxError, NullParameterError, CreatedHashedPaswordError} = require('../errors/error');
 
-// 채팅방 목록 가져오기
+// 채팅방 목록 가져오기 (소켓)
 module.exports.getChatRoomList = async(req,res)=>{
     const pg = new postgres();
     const expertId = req.params.expertId;
@@ -38,7 +38,7 @@ module.exports.getChatRoomList = async(req,res)=>{
     }
 }
 
-// 채팅 내용 가져오기
+// 채팅 내용 가져오기 (소켓)
 module.exports.getChattingList = async(req,res)=>{
     const pg = new postgres();
     const roomId = req.params.roomId;
@@ -72,7 +72,7 @@ module.exports.getChattingList = async(req,res)=>{
     }
 }
 
-// 진행중 상담 불러오기
+// 진행중 상담 불러오기 (소켓)
 module.exports.getProgressingList = async(req,res)=>{
     const pg = new postgres();
     const roomId = req.params.roomId;

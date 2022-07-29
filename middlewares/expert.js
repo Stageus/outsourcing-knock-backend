@@ -472,7 +472,7 @@ module.exports.getProfile = async(req, res) =>{
         }
 
         return res.status(200).send(
-            result // result를 그대로 보내지마
+            result.rows[0]
         );
     }
     catch(err){
