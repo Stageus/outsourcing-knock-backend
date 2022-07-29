@@ -62,7 +62,7 @@ module.exports.getCounselingList = async(req,res)=>{
         const result = await pg.queryExecute(
             `
             SELECT PP.payment_key AS product_key, PP.user_index, nickname AS user_nickname, counseling_type,
-             (status = 'CANCEL') AS is_canceled, counseling_status, TO_CHAR(counseling_start_time, 'YYYY.MM.DD / HH:MI') AS time
+             (status = 'CANCEL') AS is_canceled, counseling_status, TO_CHAR(counseling_start_time, 'YYYY.MM.DD / HH24:MI') AS time
             FROM knock.psychology_payment AS PP
             JOIN knock.users AS U ON PP.user_index = U.user_index
             JOIN knock.payment_info AS PI ON PP.payment_key = PI.payment_key
@@ -116,7 +116,7 @@ module.exports.getCounseling = async(req,res)=>{
         const result = await pg.queryExecute(
             `
             SELECT PP.payment_key AS product_key, PP.user_index, nickname AS user_nickname, counseling_type, 
-            (status = 'CANCEL') AS is_canceled, CONCAT(TO_CHAR(counseling_start_time, 'YYYY.MM.DD / HH:MI-'), TO_CHAR(counseling_end_time, 'HH:MI')) AS time,
+            (status = 'CANCEL') AS is_canceled, CONCAT(TO_CHAR(counseling_start_time, 'YYYY.MM.DD / HH24:MI-'), TO_CHAR(counseling_end_time, 'HH24:MI')) AS time,
             counseling_start_time AS start_time, counseling_end_time AS end_time
             (SELECT EXISTS(SELECT * FROM knock.pre_question_answer WHERE payment_key = PP.payment_key)) AS apply_prequestion,
             counseling_status,
