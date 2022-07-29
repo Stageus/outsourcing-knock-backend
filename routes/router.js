@@ -12,6 +12,8 @@ const calculate = require('../middlewares/calculate');
 const toss = require('../middlewares/toss');
 const admin = require('../middlewares/admin');
 const image = require('../middlewares/image');
+const phone = require('../middlewares/phoneValidation');
+const push = require('../middlewares/push');
 
 //dev_Lee
 router.get('/superadmin-settlement-of-month',admin.getSettlementOfMonthList);
@@ -62,42 +64,46 @@ router.route('/banners')
 
 // dev_shin
 router.get('/recommendation-experts', expert.getRecommendedExpertsList);
+router.route('/experts/signin')
+    .post(expert.login)
+    .get(jwtToken.verifyExpertTokenLogin, expert.tokenLogin);
 router.post('/experts/signup', expert.createAccount);
-router.post('/experts/signin', expert.login);
 router.route('/experts/:expertId/register')
     .get(expert.getRegisterInfo)
     .post(expert.register);
-router.post('/experts/password-reminder', expert.resetPassword);
-router.get('/safety-number/:phone_number', expert.issueSafetyNumber);
+router.post('/experts/:expertId/password-reminder', jwtToken.verifyExpertToken, expert.resetPassword);
+router.get('/experts/:expertId/safety-number/:phone_number', expert.issueSafetyNumber);
 router.route('/experts/:expertId/profile')
     .get(expert.getProfile)
     .post(expert.updateProfile);
 router.route('/experts/:expertId/info')
     .get(expert.getExpertInfo)
     .post(expert.updateExpertInfo);
-router.get('/experts/:expertId/phone-validation/:phone', expert.phoneValidation);
+router.get('/phone-validation/:phone', phone.sendCertifiedNumber);
+router.post('/phone-validation/:phone', phone.phoneValidation);
+router.put('/push/:userid', push.registerDeviceToken);
+router.post('/push/:userid', push.pushAlarm);
+router.get('/push/:userid', push.getToken);
 
 router.get('/experts/test/counseling/:productId/review', testList.getReview);
 
-router.get('/experts/counseling/count', counselingList.getTotalCounseling);
-router.get('/experts/:expertId/counseling/:searchType/:description/:progress/:counselingType/:startDate/:endDate/:pagecount', counselingList.getCounselingList);
+router.get('/experts/:expertId/counseling/:searchType/:description/:progress/:counselingTypeChatting/:counselingTypeVoice/:startDate/:endDate', counselingList.getCounselingList);
 router.get('/experts/counseling/:productId', counselingList.getCounseling);
 router.post('/experts/:expertId/counseling/:productId', counselingList.updateCounseling);
 router.get('/experts/counseling/:productId/prequestion', counselingList.getPrequestion);
 router.get('/experts/:expertId/counseling/:productId/review', counselingList.getReview);
 router.post('/experts/:expertId/counseling/:productId/join-room', counselingList.joinChatRoom);
 router.post('/experts/:expertId/counseling/:productId/time', counselingList.setCounselingDate);
+router.put('/experts/:expertId/counseling/:productId/time', counselingList.updateCounselingDate);
 router.post('/experts/counseling/:productId/begin', counselingList.beginCounseling);
 router.post('/experts/counseling/:productId/end', counselingList.endCounseling);
 router.post('/experts/counseling/:productId/cancel', counselingList.cancelCounseling);
 
 
-router.get('/experts/test/allot/count', testList.getAllocationListCount);
-router.get('/experts/test/allot/:pagecount', testList.getAllocationList);
+router.get('/experts/test/allot', testList.getAllocationList);
 router.get('/experts/test/allot/:productIndex/view-result', testList.viewResult);
 router.post('/experts/:expertId/test/allocate', testList.allot);
-router.get('/experts/test/counseling/count', testList.getCounselingCount);
-router.get('/experts/:expertId/test/counseling/:searchType/:description/:progress/:cancelStatus/:startDate/:endDate/:pagecount', testList.getCounselingList);
+router.get('/experts/:expertId/test/counseling/:searchType/:description/:progress/:cancelStatus/:startDate/:endDate', testList.getCounselingList);
 router.post('/experts/test/counseling/:productId/result-open', testList.openCounselingResult);
 router.route('/experts/test/counseling/:productId')
     .get(testList.getCounseling)

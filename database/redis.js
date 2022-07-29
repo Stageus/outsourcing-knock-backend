@@ -50,6 +50,15 @@ module.exports = class Redis{
         }
     }
 
+    async getTTL(key){
+        try{
+            return await this.client.ttl(key);
+        }
+        catch(err){
+            throw new RedisError(err);
+        }
+    }
+
     async setPrice(productNumber, price){
         try{
             await this.client.set(productNumber,price);
@@ -61,6 +70,25 @@ module.exports = class Redis{
     async getPrice(productNumber){
         try{
             return await this.client.get(productNumber);
+        }
+        catch(err){
+            throw new RedisError(err);
+        }
+    }
+
+    async setCertifiedNumber(phone, certifiedNumber){
+        try{
+            await this.client.set(phone, certifiedNumber);
+            await this.client.expire(phone, 60 * 3); // 인증시간 3m
+        }
+        catch(err){
+            throw new RedisError(err);
+        }
+    }
+
+    async getCertifiedNumber(phone){
+        try{
+            return await this.client.get(phone);
         }
         catch(err){
             throw new RedisError(err);

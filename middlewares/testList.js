@@ -6,38 +6,10 @@ const hasing = require('../utils/password');
 const jwtToken = require('../utils/jwtToken');
 const array2String = require('../utils/array2String');
 
-// 검사 목록 - 배정 목록 : 전체 개수
-module.exports.getAllocationListCount = async(req,res)=>{
-    const pg = new postgres();
-
-    try{
-        await pg.connect();
-        const result = await pg.queryExecute(
-            `
-            SELECT COUNT(*) FROM knock.test_payment;
-            `
-        , []);
-
-        return res.status(200).send(result.rows[0]);
-    }
-    catch(err){
-        if(err instanceof NullParameterError)
-            return res.status(400).send();
-        if(err instanceof PostgreConnectionError)
-            return res.status(500).send();
-        if(err instanceof SqlSyntaxError)
-            return res.status(409).send();
-    }
-    finally{
-        await pg.disconnect();
-    }
-}
-
 // 검사 목록 - 배정 목록 : 가져오기
 module.exports.getAllocationList = async(req,res)=>{
     const pg = new postgres();
-    const pageCount = req.params.pagecount;
-    const pagePerRow = 5; // 페이지당 row 개수
+
     try{
         await pg.connect();
         const result = await pg.queryExecute(
@@ -46,11 +18,20 @@ module.exports.getAllocationList = async(req,res)=>{
             FROM knock.test_payment AS TP
             JOIN knock.users AS U ON TP.user_index = U.user_index
             JOIN knock.test_result AS TR ON TP.payment_key = TR.payment_key
-            OFFSET ${pagePerRow * (pageCount - 1)} LIMIT ${pagePerRow * pageCount};
             `
         , []);
 
-        return res.status(200).send(result.rows);
+        const count = await pg.queryExecute(
+            `
+            SELECT CEIL(COUNT(*) / 10.0)
+            FROM knock.test_payment
+            `
+        );
+
+        return res.status(200).send({
+            testList : result.rows,
+            pageCount : count.rowCount,
+        });
     }
     catch(err){
         if(err instanceof NullParameterError)
@@ -123,33 +104,6 @@ module.exports.allot = async(req,res)=>{
     }
 }
 
-// 검사 목록 - 해석 상담 목록 : 전체 개수
-module.exports.getCounselingCount = async(req,res)=>{
-    const pg = new postgres();
-
-    try{
-        await pg.connect();
-        const result = await pg.queryExecute(
-            `
-            SELECT COUNT(*) FROM knock.allotted_test;
-            `
-        , []);
-
-        return res.status(200).send(result.rows[0]);
-    }
-    catch(err){
-        if(err instanceof NullParameterError)
-            return res.status(400).send();
-        if(err instanceof PostgreConnectionError)
-            return res.status(500).send();
-        if(err instanceof SqlSyntaxError)
-            return res.status(409).send();
-    }
-    finally{
-        await pg.disconnect();
-    }
-}
-
 // 검사 목록 - 해석 상담 목록 : 가져오기
 module.exports.getCounselingList = async(req,res)=>{
     const pg = new postgres();
@@ -160,8 +114,6 @@ module.exports.getCounselingList = async(req,res)=>{
     const cancelStatus = req.params.cancelStatus;
     const startDate = req.params.startDate;
     const endDate = req.params.endDate;
-    const pageCount = req.params.pagecount;
-    const pagePerRow = 5; // 페이지당 row 개수
 
     let whereClause = ``;
     whereClause = `WHERE AT.expert_index = ${expertId} `;
@@ -207,19 +159,33 @@ module.exports.getCounselingList = async(req,res)=>{
         await pg.connect();
         const result = await pg.queryExecute(
             `
-            SELECT AT.payment_key AS product_key, TP.user_index, nickname AS user_nickname, counseling_status, status, counseling_start_time, counseling_end_time
+            SELECT AT.payment_key AS product_key, TP.user_index, nickname AS user_nickname, counseling_status, status, CONCAT(TO_CHAR(counseling_start_time, 'YYYY.MM.DD / HH:MI-'), TO_CHAR(counseling_end_time, 'HH:MI')) AS time
             FROM knock.allotted_test AS AT
             JOIN knock.test_payment AS TP ON AT.payment_key = TP.payment_key
             JOIN knock.users AS U ON TP.user_index = U.user_index
             JOIN knock.payment_info AS PI ON AT.payment_key = PI.payment_key
             ${whereClause}
-            OFFSET ${pagePerRow * (pageCount-1)} LIMIT ${pagePerRow * pageCount};
             `
         , []);
 
-        return res.status(200).send(result.rows);
+        const count = await pg.queryExecute(
+            `
+            SELECT CEIL(COUNT(*) / 10.0)
+            FROM knock.allotted_test AS AT
+            JOIN knock.test_payment AS TP ON AT.payment_key = TP.payment_key
+            JOIN knock.users AS U ON TP.user_index = U.user_index
+            JOIN knock.payment_info AS PI ON AT.payment_key = PI.payment_key
+            ${whereClause}
+            `
+        );
+        
+        return res.status(200).send({
+            counselingList : result.rows,
+            pageCount : count.rowCount,
+        });
     }
     catch(err){
+        console.log(err);
         if(err instanceof NullParameterError)
             return res.status(400).send();
         if(err instanceof PostgreConnectionError)

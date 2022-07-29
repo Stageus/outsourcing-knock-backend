@@ -328,6 +328,7 @@ const getChatting = (socket)=>{
                 ORDER BY chatting_index ASC
                 `
             , [room_id]);
+            // TODO : 아래의 코드는 스크롤로 추가 댓글 불러오기 기능에 사용되는 쿼리조각
             //OFFSET ${pagePerRow * (page_count - 1)} LIMIT ${pagePerRow * page_count};
 
             if(result.rowCount != 0){
@@ -362,7 +363,7 @@ const getChatting = (socket)=>{
 // joinRoom에서 처음으로 채팅을 불러오고, 추가로 채팅을 더 불러오는 on함수 필요.
 
 const message = (socket) => {
-    socket.on('message', async(messageObj) => {
+    socket.on('message-user', async(messageObj) => {
         // participant_id는 다른 room에 같은 userId를 구분하기 위함
         const {room_id, sender_index, message, participant_id} = messageObj;
 
@@ -425,8 +426,11 @@ const message = (socket) => {
             messageResponse.result[0].message_id = savedMessage.rows[0].chatting_index;
             messageResponse.result[0].created_at = savedMessage.rows[0].created_at;
             
-            socket.to(room_id).emit('message', messageResponse);
-            socket.emit('message', messageResponse);
+            socket.to(room_id).emit('message-expert', {
+                result : messageResponse.result[0],
+                errmsg : messageResponse.errmsg,
+            });
+            socket.emit('message-user', messageResponse);
 
             // -- 위 두 코드를 아래 하나의 코드로 사용할 수 있는 것으로 보임
             // socket.nsp.to(room_id).emit('message', messageResponse);
@@ -443,6 +447,100 @@ const message = (socket) => {
 
             responseObj.errmsg = "전송에 실패하였습니다.";
             socket.emit('message-failed', responseObj);
+        }
+        finally{
+            await pg.queryUpdate(`END;`);
+            await pg.disconnect();
+        }
+    })
+
+    socket.on('message-expert', async(messageObj) => {
+        // participant_id는 다른 room에 같은 userId를 구분하기 위함
+        const {room_id, sender_index, message, participant_id} = messageObj;
+
+        const pg = new postgres();
+        const messageResponse = {
+            result : [{
+                message_id: null,
+                room_id,
+                sender_index,
+                message,
+                created_at: null
+            }],
+            errmsg : null,
+        }
+        const responseObj = {
+            result:null,
+            errmsg:null,
+        }
+        try{
+            await pg.connect();
+            await pg.queryUpdate(`BEGIN;`);
+
+            // chatting table에 보낸 채팅 기록
+            const savedMessage = await pg.queryExecute(
+                `
+                INSERT INTO knock.chatting (room_index, sender_index, message, created_at)
+                VALUES ($1, $2, $3, NOW() + '9 hour'::interval)
+                RETURNING chatting_index, created_at;
+                `,
+                [room_id, sender_index, message]
+            );
+            
+            // room의 마지막 채팅을 업데이트
+            await pg.queryUpdate(
+                `
+                UPDATE knock.room SET last_chat_index = $1
+                WHERE room_index = $2;
+                `,
+                [savedMessage.rows[0].chatting_index, room_id]
+            )
+        
+            await pg.queryUpdate(   // 수신자의 읽지 않은 메시지 수를 1 증가
+            // 수신자는 같은 방에있는 user가 아닌 다른 participant로 찾음
+                `
+                UPDATE knock.participant 
+                SET not_read_chat = not_read_chat + 1
+                WHERE room_index = $1 AND participant_index != $2;
+                `,
+                [room_id, participant_id]
+            );
+            await pg.queryUpdate(   // 송신자의 읽지 않은 메시지 수를 0으로 set
+                `
+                UPDATE knock.participant 
+                SET not_read_chat = 0
+                WHERE room_index = $1 AND participant_index = $2;
+                `,
+                [room_id, participant_id]
+            )
+
+            messageResponse.result[0].message_id = savedMessage.rows[0].chatting_index;
+            messageResponse.result[0].created_at = savedMessage.rows[0].created_at;
+            
+            socket.to(room_id).emit('message-user', messageResponse);
+            socket.emit('message-expert', {
+                result : messageResponse.result[0],
+                errmsg : messageResponse.errmsg,
+            });
+
+            // -- 위 두 코드를 아래 하나의 코드로 사용할 수 있는 것으로 보임
+            // socket.nsp.to(room_id).emit('message', messageResponse);
+        }
+        catch(err){
+            await pg.queryUpdate(`ROLLBACK;`);
+
+            if(err instanceof PostgreConnectionError)
+                console.log("연결에러 : " + err);
+            else if(err instanceof SqlSyntaxError)
+                console.log("sql 에러 : " + err);
+            else
+                console.log(err);
+
+            responseObj.errmsg = "전송에 실패하였습니다.";
+            socket.emit('message-failed', {
+                result : messageResponse.result[0],
+                errmsg : messageResponse.errmsg,
+            });
         }
         finally{
             await pg.queryUpdate(`END;`);

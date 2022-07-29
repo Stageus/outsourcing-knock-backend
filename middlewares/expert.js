@@ -1,13 +1,16 @@
 const postgres = require('../database/pg');
 const mongodb = require("../database/MongoDB");
 const parameter = require('../utils/parameter');
-const {PostgreConnectionError, SqlSyntaxError, NullParameterError, CreatedHashedPaswordError} = require('../errors/error');
+const {PostgreConnectionError, SqlSyntaxError, NullParameterError, CreatedHashedPaswordError, TokenIssueError, SendMailError} = require('../errors/error');
 const hasing = require('../utils/password');
 const jwtToken = require('../utils/jwtToken');
 const array2String = require('../utils/array2String');
-const phoneValidation = require('../utils/phoneValidation');
+const phoneValidation = require('./phoneValidation');
 const fs = require('fs');
 const path = require('path');
+const image = require('../middlewares/image');
+const mailer = require('../utils/email');
+const Redis = require('../database/redis');
 
 //추천 전문가 리스트 가져오기 (3명)
 module.exports.getRecommendedExpertsList = async(req,res) =>{
@@ -58,7 +61,8 @@ module.exports.login = async(req,res)=>{
                 WHERE email = $1 AND password = $2;
             `
         , [email, hashedPassword]);
-        
+
+        // handle expert_status
         if(result.rowCount == 0){
             return res.status(401).send();
         }
@@ -68,7 +72,77 @@ module.exports.login = async(req,res)=>{
                 rejectmsg : "",
             });
         }
-        else if(result.rows[0].expert_status == "accepted"){
+        else if(result.rows[0].expert_status == "apply"){
+            return res.status(403).send({
+                msg : "apply",
+                rejectmsg : "",
+            });
+        }
+        else if(result.rows[0].expert_status == "reject"){
+            return res.status(403).send({
+                msg : "reject",
+                rejectmsg : "(반환 사유)", // 반환 사유 table 생성 및 가져오기
+            });
+        }
+
+        let token;
+        if(maintain === true){
+            token = await jwtToken.issueToken(result.rows[0].expert_index, "7 days");
+        }
+        else{
+            token = await jwtToken.issueToken(result.rows[0].expert_index);
+        }
+
+        if(result.rows[0].expert_status == "accepted"){
+            return res.status(200).send({
+                expertId : result.rows[0].expert_index,
+                token : token,
+                msg : "accepted",
+                rejectmsg : "",
+            });
+        }
+        return res.status(200).send({
+            expertId : result.rows[0].expert_index,
+            token : token,
+            msg : "Success Login",
+            rejectmsg : ""
+        });
+    }
+    catch(err){
+        console.log(err);
+        if(err instanceof NullParameterError)
+            return res.status(400).send();
+        if(err instanceof PostgreConnectionError)
+            return res.status(500).send();
+        if(err instanceof SqlSyntaxError)
+            return res.status(500).send();
+        if(err instanceof TokenIssueError)
+            return res.status(500).send();
+    }
+    finally{
+        pg.disconnect();
+    }
+}
+
+// 전문가 토큰 로그인
+module.exports.tokenLogin = async(req,res)=>{
+    const authorization = req.headers.authorization;
+    const expertId = jwtToken.openToken(authorization).id;
+    const pg = new postgres();
+
+    try{
+        await pg.connect();
+        const result = await pg.queryExecute(
+            `
+            SELECT expert_index, expert_status FROM knock.expert 
+                WHERE expert_index = $1;
+            `
+        , [expertId]);
+        
+        if(result.rowCount == 0){
+            return res.status(401).send();
+        }
+        else if(result.rows[0].expert_status == "wait"){
             return res.status(403).send({
                 msg : "가입 승인 처리가 완료되었습니다.",
                 rejectmsg : "",
@@ -103,7 +177,6 @@ module.exports.login = async(req,res)=>{
 
         return res.status(200).send({
             expertId : result.rows[0].expert_index,
-            token : token,
             msg : "Success Login",
             rejectmsg : ""
         });
@@ -147,7 +220,11 @@ module.exports.createAccount = async(req,res)=>{
     const pg = new postgres();
 
     try{
-        await parameter.nullCheck(email, password);
+        const {name, email, password, call, education, qualification, career, expertType, profileImgPath, idCardImgPath, bankBookImgPath, educationImgPath, careerImgPath} = await image.uploadProfileImage(req, res);
+
+        await parameter.nullCheck(name, email, password, call, expertType, profileImgPath, idCardImgPath, bankBookImgPath);
+        // (INFO) nullable : education, qualification, career, educationImgPath, careerImgPath
+        
         const hashedPassword = await hasing.createHashedPassword(password);
         await pg.connect();
         await pg.queryUpdate(`BEGIN;`);
@@ -426,7 +503,7 @@ module.exports.getProfile = async(req, res) =>{
         }
 
         return res.status(200).send(
-            result // result를 그대로 보내지마
+            result.rows[0]
         );
     }
     catch(err){
@@ -679,25 +756,6 @@ module.exports.updateExpertInfo = async(req,res)=>{
         await pg.disconnect();
     }
 }
-
-// (미완) 휴대폰 인증하기
-module.exports.phoneValidation = async(req,res)=>{
-    const expertId = req.params.expertId;
-    const phoneNubmer = req.params.phone;
-
-    try{
-        parameter.nullCheck(phoneNubmer);
-        const resultCode = await phoneValidation.send_message(phoneNubmer, "SMS 인증번호 발송용 테스트 메일입니다.");
-        console.log(resultCode);
-    }
-    catch(err){
-        console.log(err);
-        if(err instanceof NullParameterError)
-            return res.status(400).send();
-    }
-    res.status(200).send();
-}
-
 
 
 //
